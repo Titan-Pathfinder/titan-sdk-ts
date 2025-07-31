@@ -51,8 +51,6 @@
 		"lint": "biome lint",
 		"build": "rollup -c",
 		"test": "jest",
-		"test:browser": "node test-browser-bundles.js",
-		"serve": "node serve-test.js",
 		"format": "biome check --write"
 	},
 	"dependencies": {

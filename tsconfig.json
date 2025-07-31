@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"lib": ["es2024", "dom"],
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"allowSyntheticDefaultImports": true
+	},
+	"include": ["src/**/*", "test/**/*", "jest.config.js", "rollup.config.mjs"]
+}

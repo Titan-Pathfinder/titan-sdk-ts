@@ -1,0 +1,59 @@
+{
+	"name": "titan-sdk",
+	"version": "0.1.0",
+	"description": "Client SDK for the Titan API",
+	"author": "Christopher Dudley <chris.dudley@titandex.io>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Titan-Pathfinder/titan-sdk-ts.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Titan-Pathfinder/titan-sdk-ts/issues"
+	},
+	"homepage": "https://github.com/Titan-Pathfinder/titan-sdk-ts#readme",
+	"engines": {
+		"npm": ">=9.2",
+		"node": ">=18.19"
+	},
+	"packageManager": "pnpm@9.7.0",
+	"main": "./lib/titan-sdk.cjs",
+	"module": "./lib/titan-sdk.mjs",
+	"typings": "./lib/titan-sdk.d.ts",
+	"exports": {
+		".": {
+			"require": "./lib/titan-sdk.cjs",
+			"import": "./lib/titan-sdk.mjs",
+			"types": "./lib/titan-sdk.d.ts"
+		}
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.1.2",
+		"@rollup/plugin-commonjs": "^28.0.6",
+		"@rollup/plugin-node-resolve": "^16.0.1",
+		"@rollup/plugin-typescript": "^12.1.4",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^24.1.0",
+		"@types/websocket": "^1.0.0",
+		"esbuild": "^0.25.8",
+		"jest": "^30.0.5",
+		"rollup": "^4.45.1",
+		"rollup-plugin-dts": "^6.2.1",
+		"rollup-plugin-esbuild": "^6.2.1",
+		"ts-jest": "^29.4.0",
+		"ts-node": "^10.9.2",
+		"tslib": "^2.8.1",
+		"typescript": "^5.8.3"
+	},
+	"scripts": {
+		"lint": "biome lint",
+		"build": "rollup -c",
+		"test": "jest",
+		"format": "biome check --write"
+	},
+	"dependencies": {
+		"@msgpack/msgpack": "^3.0.0",
+		"http-encoding": "^2.0.0",
+		"websocket": "^1.0.0"
+	}
+}

@@ -70,7 +70,7 @@ export default [
 
 	// Output for Typescript's .d.ts
 	bundle({
-		plugins: [dts()],
+		plugins: [dts(), commonjs()],
 		output: {
 			file: `${libOutputPath}.d.ts`,
 			format: "es",

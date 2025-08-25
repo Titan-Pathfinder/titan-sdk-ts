@@ -53,7 +53,7 @@
 	},
 	"dependencies": {
 		"@msgpack/msgpack": "^3.0.0",
-		"http-encoding": "^2.0.0",
+		"http-encoding": "^2.1.1",
 		"websocket": "^1.0.0"
 	}
 }

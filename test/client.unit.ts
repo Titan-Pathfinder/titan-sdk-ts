@@ -1,6 +1,18 @@
 import { V1Client } from "../src/client";
 import * as v1 from "../src/types/v1";
-import { FakeWebSocket, StubCodec, minimalServerInfo, minimalSwapQuotes } from "./helpers";
+import {
+	FakeWebSocket,
+	StubCodec,
+	minimalServerInfo,
+	minimalSwapQuotes,
+	emitResponseGetInfo,
+	emitResponseNewSwapQuoteStream,
+	emitStreamData,
+	emitStreamEnd,
+	emitResponseStopStream,
+	emitError,
+	failNextDecode,
+} from "./helpers";
 
 describe("V1Client (unit)", () => {
 	test("getInfo resolves with server info and increments ids", async () => {
@@ -12,10 +24,7 @@ describe("V1Client (unit)", () => {
 		// Expect first request id to be 0
 		expect(codec.encodedMessages[0]).toMatchObject({ id: 0, data: { GetInfo: {} } });
 
-		codec.setNextDecode([
-			{ Response: { requestId: 0, data: { GetInfo: minimalServerInfo() } } },
-		]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitResponseGetInfo(socket, codec, 0, minimalServerInfo());
 
 		const info = await infoP;
 		expect(info.protocolVersion.major).toBe(1);
@@ -37,16 +46,7 @@ describe("V1Client (unit)", () => {
 		expect(codec.encodedMessages[0]).toMatchObject({ id: 0, data: { NewSwapQuoteStream: expect.any(Object) } });
 
 		// Server responds with stream creation
-		codec.setNextDecode([
-			{
-				Response: {
-					requestId: 0,
-					data: { NewSwapQuoteStream: { intervalMs: 1000 } },
-					stream: { id: 42, dataType: v1.StreamDataType.SwapQuotes },
-				},
-			},
-		]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitResponseNewSwapQuoteStream(socket, codec, 0, 42, 1000);
 
 		const { response, stream } = await streamP;
 		expect(response.intervalMs).toBe(1000);
@@ -54,17 +54,13 @@ describe("V1Client (unit)", () => {
 		const reader = stream.getReader();
 
 		// Emit a data packet
-		codec.setNextDecode([
-			{ StreamData: { id: 42, seq: 0, payload: { SwapQuotes: minimalSwapQuotes() } } },
-		]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitStreamData(socket, codec, 42, minimalSwapQuotes());
 		const first = await reader.read();
 		expect(first.done).toBe(false);
 		expect(first.value).toBeDefined();
 
 		// End the stream
-		codec.setNextDecode([{ StreamEnd: { id: 42 } }]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitStreamEnd(socket, codec, 42);
 		const done = await reader.read();
 		expect(done.done).toBe(true);
 	});
@@ -79,16 +75,12 @@ describe("V1Client (unit)", () => {
 				swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 10 },
 				transaction: { userPublicKey: new Uint8Array(32) as any },
 			});
-			codec.setNextDecode([
-				{ Response: { requestId: 0, data: { NewSwapQuoteStream: { intervalMs: 500 } }, stream: { id: 7, dataType: v1.StreamDataType.SwapQuotes } } },
-			]);
-			socket.emitBinary(new Uint8Array([0]).buffer);
+			emitResponseNewSwapQuoteStream(socket, codec, 0, 7, 500);
 			return p;
 		})();
 
 		const reader = stream.getReader();
-		codec.setNextDecode([{ StreamEnd: { id: 7, errorCode: 9, errorMessage: "bad" } }]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitStreamEnd(socket, codec, 7, 9, "bad");
 		await expect(reader.read()).rejects.toMatchObject({ name: "StreamError" });
 	});
 
@@ -102,10 +94,7 @@ describe("V1Client (unit)", () => {
 				swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 10 },
 				transaction: { userPublicKey: new Uint8Array(32) as any },
 			});
-			codec.setNextDecode([
-				{ Response: { requestId: 0, data: { NewSwapQuoteStream: { intervalMs: 500 } }, stream: { id: 5, dataType: v1.StreamDataType.SwapQuotes } } },
-			]);
-			socket.emitBinary(new Uint8Array([0]).buffer);
+			emitResponseNewSwapQuoteStream(socket, codec, 0, 5, 500);
 			return p;
 		})();
 
@@ -115,10 +104,7 @@ describe("V1Client (unit)", () => {
 		expect(stopReq).toBeDefined();
 
 		// Resolve stop stream
-		codec.setNextDecode([
-			{ Response: { requestId: stopReq.id, data: { StreamStopped: { id: 5 } } } },
-		]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitResponseStopStream(socket, codec, stopReq.id, 5);
 		await cancelP;
 
 		// Repeated cancel should not enqueue more StopStream
@@ -133,8 +119,7 @@ describe("V1Client (unit)", () => {
 		const client = new V1Client(socket as any, codec as any);
 
 		const p = client.getInfo();
-		codec.setNextDecode([{ Error: { requestId: 0, code: 400, message: "bad" } }]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitError(socket, codec, 0, 400, "bad");
 		await expect(p).rejects.toMatchObject({ name: "ErrorResponse" });
 	});
 
@@ -144,8 +129,7 @@ describe("V1Client (unit)", () => {
 		const client = new V1Client(socket as any, codec as any);
 
 		const p = client.getInfo();
-		codec.setNextDecodeError(new Error("decode boom"));
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		failNextDecode(socket, codec, new Error("decode boom"));
 
 		await expect(p).rejects.toMatchObject({ name: "ConnectionError" });
 		expect(socket.closed?.code).toBe(1002);
@@ -158,7 +142,7 @@ describe("V1Client (unit)", () => {
 		const client = new V1Client(socket as any, codec as any);
 
 		// Emit data for unknown stream
-		codec.setNextDecode([{ StreamData: { id: 999, seq: 0, payload: { SwapQuotes: minimalSwapQuotes() } } }]);
+		emitStreamData(socket, codec, 999, minimalSwapQuotes());
 		expect(() => socket.emitBinary(new Uint8Array([0]).buffer)).not.toThrow();
 	});
 
@@ -171,12 +155,10 @@ describe("V1Client (unit)", () => {
 		const p1 = client.getInfo(); // id 1
 
 		// Respond to id 1 first
-		codec.setNextDecode([{ Response: { requestId: 1, data: { GetInfo: minimalServerInfo() } } }]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitResponseGetInfo(socket, codec, 1, minimalServerInfo());
 
 		// Then respond to id 0
-		codec.setNextDecode([{ Response: { requestId: 0, data: { GetInfo: minimalServerInfo() } } }]);
-		socket.emitBinary(new Uint8Array([0]).buffer);
+		emitResponseGetInfo(socket, codec, 0, minimalServerInfo());
 
 		await expect(Promise.all([p0, p1])).resolves.toHaveLength(2);
 	});

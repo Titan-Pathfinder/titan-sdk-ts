@@ -75,19 +75,8 @@ describe("distribution imports", () => {
 		const run = promisify(execFile);
 		const nodeBin = process.execPath;
 		const esmUrl = pathToFileURL(path.resolve(__dirname, "../lib/titan-sdk.mjs")).href;
-		const msgpackPath = require.resolve("@msgpack/msgpack");
-		const script = `
-import * as mod from '${esmUrl}';
-import { encode } from '${msgpackPath}';
-const serverMsg = { Response: { requestId: 0, data: { GetInfo: { protocolVersion: { major:1, minor:0, patch:0 }, settings: { quoteUpdate: { intervalMs: { min: 1, max: 2, default: 1 } }, swap: { slippageBps: { min: 0, max:1000, default: 50 }, onlyDirectRoutes: false, addSizeConstraint: false }, transaction: { closeInputTokenAccount: false, createOutputTokenAccount: true } } } } } };
-const V1ClientCodec = (mod.codec && mod.codec.V1ClientCodec) ? mod.codec.V1ClientCodec : mod.V1ClientCodec;
-const codec = V1ClientCodec.from_protocol('${v1.WEBSOCKET_SUBPROTO_BASE}');
-const packed = encode(serverMsg);
-const decoded = await codec.decode(packed);
-if (!decoded || !decoded.Response) { throw new Error('decode failed'); }
-console.log('OK');
-`;
-		const { stdout } = await run(nodeBin, ["--input-type=module", "-e", script]);
+		const smokePath = path.resolve(__dirname, "./esm-smoke.mjs");
+		const { stdout } = await run(nodeBin, [smokePath, esmUrl]);
 		expect(stdout.trim()).toBe("OK");
 	});
 });

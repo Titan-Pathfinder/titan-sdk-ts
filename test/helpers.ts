@@ -86,4 +86,65 @@ export function minimalSwapQuotes(): v1.SwapQuotes {
 	};
 }
 
+// Emit helpers for unit tests
+export function emitResponseGetInfo(socket: FakeWebSocket, codec: StubCodec, requestId: number, info: v1.ServerInfo) {
+	codec.setNextDecode([{ Response: { requestId, data: { GetInfo: info } } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitResponseNewSwapQuoteStream(
+	socket: FakeWebSocket,
+	codec: StubCodec,
+	requestId: number,
+	streamId: number,
+	intervalMs: number,
+) {
+	codec.setNextDecode([
+		{
+			Response: {
+				requestId,
+				data: { NewSwapQuoteStream: { intervalMs } },
+				stream: { id: streamId, dataType: v1.StreamDataType.SwapQuotes },
+			},
+		},
+	]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitResponseStopStream(
+	socket: FakeWebSocket,
+	codec: StubCodec,
+	requestId: number,
+	streamId: number,
+) {
+	codec.setNextDecode([{ Response: { requestId, data: { StreamStopped: { id: streamId } } } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitStreamData(socket: FakeWebSocket, codec: StubCodec, streamId: number, quotes: v1.SwapQuotes) {
+	codec.setNextDecode([{ StreamData: { id: streamId, seq: 0, payload: { SwapQuotes: quotes } } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitStreamEnd(
+	socket: FakeWebSocket,
+	codec: StubCodec,
+	streamId: number,
+	errorCode?: number,
+	errorMessage?: string,
+) {
+	codec.setNextDecode([{ StreamEnd: { id: streamId, errorCode, errorMessage } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitError(socket: FakeWebSocket, codec: StubCodec, requestId: number, code: number, message: string) {
+	codec.setNextDecode([{ Error: { requestId, code, message } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function failNextDecode(socket: FakeWebSocket, codec: StubCodec, error: Error) {
+	codec.setNextDecodeError(error);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
 

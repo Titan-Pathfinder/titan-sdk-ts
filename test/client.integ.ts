@@ -15,115 +15,104 @@ async function createServer() {
 }
 
 describe("V1Client (integration)", () => {
-	test("getInfo round-trip", async () => {
-		const { httpServer, wsServer, port } = await createServer();
-		const closeAll = async () => {
-			wsServer.shutDown();
-			httpServer.close();
-		};
-		try {
-			wsServer.on("request", (req) => {
-				// Pick base protocol (no compression) for simplicity
-				const selected = req.requestedProtocols.find((p) => p.startsWith(v1.WEBSOCKET_SUBPROTO_BASE)) || v1.WEBSOCKET_SUBPROTO_BASE;
-				const conn = req.accept(selected);
-				const codec = V1ClientCodec.from_protocol(selected);
-				conn.on("message", async (msg) => {
-					if (msg.type === "binary") {
-						const data = new Uint8Array(msg.binaryData);
-						const decoded = (await codec.decode(data)) as any;
-						if (decoded?.data?.GetInfo !== undefined) {
-							const response: v1.ServerMessage = {
-								Response: {
-									requestId: decoded.id,
-									data: { GetInfo: minimalServerInfo() },
-								},
-							};
-							const encoded = await (codec as any).encode(response);
-							conn.sendBytes(Buffer.from(encoded));
-						}
-					}
-				});
-			});
+	let httpServer: http.Server;
+	let wsServer: WebSocketServer;
+	let port: number;
 
-			const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
-			const info = await client.getInfo();
-			expect(info.protocolVersion.major).toBe(1);
-		} finally {
-			await closeAll();
-		}
+	beforeEach(async () => {
+		const s = await createServer();
+		httpServer = s.httpServer as any;
+		wsServer = s.wsServer as any;
+		port = s.port as any;
 	});
 
-	test("stream create, receive data, and end", async () => {
-		const { httpServer, wsServer, port } = await createServer();
-		const closeAll = async () => {
-			wsServer.shutDown();
-			httpServer.close();
-		};
-		try {
-			wsServer.on("request", (req) => {
-				const selected = req.requestedProtocols.find((p) => p.startsWith(v1.WEBSOCKET_SUBPROTO_BASE)) || v1.WEBSOCKET_SUBPROTO_BASE;
-				const conn = req.accept(selected);
-				const codec = V1ClientCodec.from_protocol(selected);
-				conn.on("message", async (msg) => {
-					if (msg.type !== "binary") return;
+	afterEach(async () => {
+		wsServer.shutDown();
+		httpServer.close();
+	});
+
+	test("getInfo round-trip", async () => {
+		wsServer.on("request", (req) => {
+			// Pick base protocol (no compression) for simplicity
+			const selected = v1.WEBSOCKET_SUBPROTO_BASE;
+			const conn = req.accept(selected);
+			const codec = V1ClientCodec.from_protocol(selected);
+			conn.on("message", async (msg) => {
+				if (msg.type === "binary") {
 					const data = new Uint8Array(msg.binaryData);
 					const decoded = (await codec.decode(data)) as any;
-					if (decoded?.data?.NewSwapQuoteStream) {
-						const streamId = 77;
+					if (decoded?.data?.GetInfo !== undefined) {
 						const response: v1.ServerMessage = {
 							Response: {
 								requestId: decoded.id,
-								data: { NewSwapQuoteStream: { intervalMs: 1000 } },
-								stream: { id: streamId, dataType: v1.StreamDataType.SwapQuotes },
+								data: { GetInfo: minimalServerInfo() },
 							},
 						};
-						conn.sendBytes(Buffer.from(await (codec as any).encode(response)));
-						// Send a data packet then end
-						const dataMsg: v1.ServerMessage = { StreamData: { id: streamId, seq: 0, payload: { SwapQuotes: minimalSwapQuotes() } } };
-						conn.sendBytes(Buffer.from(await (codec as any).encode(dataMsg)));
-						const endMsg: v1.ServerMessage = { StreamEnd: { id: streamId } };
-						conn.sendBytes(Buffer.from(await (codec as any).encode(endMsg)));
+						const encoded = await (codec as any).encode(response);
+						conn.sendBytes(Buffer.from(encoded));
 					}
-				});
+				}
 			});
+		});
 
-			const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
-			const { stream } = await client.newSwapQuoteStream({
-				swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 10 },
-				transaction: { userPublicKey: new Uint8Array(32) as any },
+		const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
+		const info = await client.getInfo();
+		expect(info.protocolVersion.major).toBe(1);
+	});
+
+	test("stream create, receive data, and end", async () => {
+		wsServer.on("request", (req) => {
+			const selected = req.requestedProtocols.find((p) => p.startsWith(v1.WEBSOCKET_SUBPROTO_BASE)) || v1.WEBSOCKET_SUBPROTO_BASE;
+			const conn = req.accept(selected);
+			const codec = V1ClientCodec.from_protocol(selected);
+			conn.on("message", async (msg) => {
+				if (msg.type !== "binary") return;
+				const data = new Uint8Array(msg.binaryData);
+				const decoded = (await codec.decode(data)) as any;
+				if (decoded?.data?.NewSwapQuoteStream) {
+					const streamId = 77;
+					const response: v1.ServerMessage = {
+						Response: {
+							requestId: decoded.id,
+							data: { NewSwapQuoteStream: { intervalMs: 1000 } },
+							stream: { id: streamId, dataType: v1.StreamDataType.SwapQuotes },
+						},
+					};
+					conn.sendBytes(Buffer.from(await (codec as any).encode(response)));
+					// Send a data packet then end
+					const dataMsg: v1.ServerMessage = { StreamData: { id: streamId, seq: 0, payload: { SwapQuotes: minimalSwapQuotes() } } };
+					conn.sendBytes(Buffer.from(await (codec as any).encode(dataMsg)));
+					const endMsg: v1.ServerMessage = { StreamEnd: { id: streamId } };
+					conn.sendBytes(Buffer.from(await (codec as any).encode(endMsg)));
+				}
 			});
-			const reader = stream.getReader();
-			const first = await reader.read();
-			expect(first.done).toBe(false);
-			expect(first.value).toBeDefined();
-			const done = await reader.read();
-			expect(done.done).toBe(true);
-		} finally {
-			await closeAll();
-		}
+		});
+
+		const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
+		const { stream } = await client.newSwapQuoteStream({
+			swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 10 },
+			transaction: { userPublicKey: new Uint8Array(32) as any },
+		});
+		const reader = stream.getReader();
+		const first = await reader.read();
+		expect(first.done).toBe(false);
+		expect(first.value).toBeDefined();
+		const done = await reader.read();
+		expect(done.done).toBe(true);
 	});
 
 	test("malformed frame triggers client close and inflight rejection", async () => {
-		const { httpServer, wsServer, port } = await createServer();
-		const closeAll = async () => {
-			wsServer.shutDown();
-			httpServer.close();
-		};
-		try {
-			wsServer.on("request", (req) => {
-				const selected = req.requestedProtocols.find((p) => p.startsWith(v1.WEBSOCKET_SUBPROTO_BASE)) || v1.WEBSOCKET_SUBPROTO_BASE;
-				const conn = req.accept(selected);
-				// Wait for the client to send its first request, then reply with malformed bytes
-				conn.on("message", () => {
-					conn.sendBytes(Buffer.from(new Uint8Array([0, 1, 2, 3])));
-				});
+		wsServer.on("request", (req) => {
+			const selected = req.requestedProtocols.find((p) => p.startsWith(v1.WEBSOCKET_SUBPROTO_BASE)) || v1.WEBSOCKET_SUBPROTO_BASE;
+			const conn = req.accept(selected);
+			// Wait for the client to send its first request, then reply with malformed bytes
+			conn.on("message", () => {
+				conn.sendBytes(Buffer.from(new Uint8Array([0, 1, 2, 3])));
 			});
+		});
 
-			const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
-			await expect(client.getInfo()).rejects.toMatchObject({ name: "ConnectionError" });
-		} finally {
-			await closeAll();
-		}
+		const client = await V1Client.connect(`ws://127.0.0.1:${port}/`);
+		await expect(client.getInfo()).rejects.toMatchObject({ name: "ConnectionError" });
 	});
 });
 

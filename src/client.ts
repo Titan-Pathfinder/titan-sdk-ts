@@ -1,10 +1,7 @@
 import { DecodeError, InvalidProtocolError, V1ClientCodec } from "./codec";
 
-import {
-	type ICloseEvent,
-	type IMessageEvent,
-	w3cwebsocket as WebSocket,
-} from "websocket";
+import { WebSocket, WebSocketInstance, IMessageEvent, ICloseEvent } from "./websocket";
+
 import * as v1 from "./types/v1";
 
 // Polyfill Promise.withResolvers if not available.
@@ -230,7 +227,7 @@ export interface ResponseWithStream<T, D> {
 }
 
 export class V1Client {
-	private socket: WebSocket;
+	private socket: WebSocketInstance;
 	private codec: V1ClientCodec;
 	private nextId: number;
 	private _closed: boolean;
@@ -240,7 +237,7 @@ export class V1Client {
 	private streamStopping: Map<number, boolean>;
 
 	static connect(url: string): Promise<V1Client> {
-		const ws = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
+		const ws : WebSocketInstance = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
 		ws.binaryType = "arraybuffer";
 
 		const { promise, resolve, reject } = Promise.withResolvers<V1Client>();
@@ -267,7 +264,7 @@ export class V1Client {
 		return promise;
 	}
 
-	constructor(socket: WebSocket, codec: V1ClientCodec) {
+	constructor(socket: WebSocketInstance, codec: V1ClientCodec) {
 		this.socket = socket;
 		this.codec = codec;
 		this.nextId = 0;

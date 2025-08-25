@@ -1,4 +1,4 @@
-import { ICloseEvent, w3cwebsocket } from 'websocket';
+import pkg, { ICloseEvent } from 'websocket';
 
 /**
  * A Solana account public key.
@@ -368,6 +368,9 @@ declare namespace codec {
   };
 }
 
+declare const WebSocket: typeof pkg.w3cwebsocket;
+type WebSocketInstance = InstanceType<typeof WebSocket>;
+
 /**
  * Error returned if the request or stream was cancelled due to the underlying
  * connection closing.
@@ -431,7 +434,7 @@ declare class V1Client {
     private quoteStreams;
     private streamStopping;
     static connect(url: string): Promise<V1Client>;
-    constructor(socket: w3cwebsocket, codec: V1ClientCodec);
+    constructor(socket: WebSocketInstance, codec: V1ClientCodec);
     private nextRequestId;
     /**
      * Returns true if the underlying WebSocket connection is closed.

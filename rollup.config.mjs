@@ -51,7 +51,7 @@ export default [
 	// Output for NodeJS
 	bundle({
 		//plugins: [esbuild({ target: target_server })],
-		plugins: [typescript(), commonjs()],
+		plugins: [typescript(), commonjs(), nodeResolve(), json()],
 		output: [
 			{
 				file: `${libOutputPath}.cjs`,

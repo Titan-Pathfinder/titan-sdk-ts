@@ -51,7 +51,7 @@ export default [
 	// Output for NodeJS
 	bundle({
 		//plugins: [esbuild({ target: target_server })],
-		plugins: [typescript(), commonjs(), nodeResolve(), json()],
+		plugins: [typescript()],
 		output: [
 			{
 				file: `${libOutputPath}.cjs`,
@@ -70,7 +70,7 @@ export default [
 
 	// Output for Typescript's .d.ts
 	bundle({
-		plugins: [dts(), commonjs()],
+		plugins: [dts()],
 		output: {
 			file: `${libOutputPath}.d.ts`,
 			format: "es",

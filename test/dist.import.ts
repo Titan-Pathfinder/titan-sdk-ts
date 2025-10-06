@@ -55,7 +55,7 @@ describe("distribution imports", () => {
 		const encoded = await codec.encode(req);
 		expect(encoded).toBeInstanceOf(Uint8Array);
 		// decode a ServerMessage encoded via msgpack
-		const serverMsg: v1.ServerMessage = { Response: { requestId: 0, data: { GetInfo: { protocolVersion: { major:1, minor:0, patch:0 }, settings: { quoteUpdate: { intervalMs: { min: 1, max: 2, default: 1 } }, swap: { slippageBps: { min: 0, max:1000, default: 50 }, onlyDirectRoutes: false, addSizeConstraint: false }, transaction: { closeInputTokenAccount: false, createOutputTokenAccount: true } } } } } };
+		const serverMsg: v1.ServerMessage = { Response: { requestId: 0, data: { GetInfo: { protocolVersion: { major:1, minor:0, patch:0 }, settings: { quoteUpdate: { intervalMs: { min: 1, max: 2, default: 1 }, num_quotes: { min: 1, max: 100, default: 3 } }, swap: { slippageBps: { min: 0, max:1000, default: 50 }, onlyDirectRoutes: false, addSizeConstraint: false }, transaction: { closeInputTokenAccount: false, createOutputTokenAccount: true }, connection: { concurrentStreams: 5 } } } } } };
 		const packed = encode(serverMsg);
 		const decoded = await codec.decode(packed);
 		expect(decoded).toHaveProperty("Response");

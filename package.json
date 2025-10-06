@@ -25,6 +25,18 @@
 			"require": "./lib/titan-sdk.cjs",
 			"import": "./lib/titan-sdk.mjs",
 			"types": "./lib/titan-sdk.d.ts"
+		},
+		"./browser": {
+			"import": "./lib/titan-sdk.browser.mjs",
+			"types": "./lib/titan-sdk.d.ts"
+		},
+		"./browser/umd": {
+			"import": "./lib/titan-sdk.browser.umd.js",
+			"types": "./lib/titan-sdk.d.ts"
+		},
+		"./browser/iife": {
+			"import": "./lib/titan-sdk.browser.iife.js",
+			"types": "./lib/titan-sdk.d.ts"
 		}
 	},
 	"devDependencies": {

@@ -1,8 +1,12 @@
 {
-	"name": "titan-sdk",
+	"name": "@titanexchange/typescript",
 	"version": "0.1.0",
 	"description": "Client SDK for the Titan API",
-	"author": "Christopher Dudley <chris.dudley@titandex.io>",
+	"author": "Titan Exchange <info@titandex.io>",
+	"contributors": [
+		"Christopher Dudley <chris.dudley@titandex.io>", 
+		"Jeremy Wong <jeremy.wong@titandex.io>"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -19,6 +23,7 @@
 	"packageManager": "pnpm@9.7.0",
 	"main": "./lib/titan-sdk.cjs",
 	"module": "./lib/titan-sdk.mjs",
+	"browser": "./lib/titan-sdk.browser.mjs",
 	"typings": "./lib/titan-sdk.d.ts",
 	"exports": {
 		".": {

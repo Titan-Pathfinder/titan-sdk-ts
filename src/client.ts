@@ -408,13 +408,13 @@ export class V1Client {
 	}
 
 	private handleServerMessage(message: v1.ServerMessage) {
-		if (message.Response !== undefined) {
+		if ("Response" in message) {
 			this.handleResponseSuccess(message.Response);
-		} else if (message.Error !== undefined) {
+		} else if ("Error" in message) {
 			this.handleResponseError(message.Error);
-		} else if (message.StreamData !== undefined) {
+		} else if ("StreamData" in message) {
 			this.handleStreamData(message.StreamData);
-		} else if (message.StreamEnd !== undefined) {
+		} else if ("StreamEnd" in message) {
 			this.handleStreamEnd(message.StreamEnd);
 		} else {
 			console.warn(
@@ -432,9 +432,9 @@ export class V1Client {
 		}
 		this.results.delete(message.requestId);
 
-		if (message.data.GetInfo !== undefined) {
+		if ("GetInfo" in message.data) {
 			handler.resolveGetInfo(message.data.GetInfo);
-		} else if (message.data.NewSwapQuoteStream) {
+		} else if ("NewSwapQuoteStream" in message.data) {
 			const streamInfo = message.stream;
 			if (streamInfo === undefined) {
 				handler.reject(
@@ -461,7 +461,7 @@ export class V1Client {
 				};
 				handler.resolveNewSwapQuoteStream(result);
 			}
-		} else if (message.data.StreamStopped) {
+		} else if ("StreamStopped" in message.data) {
 			handler.resolveStopStream(message.data.StreamStopped);
 		} else {
 			const response_type = Object.keys(message.data).at(0) || "<none>";

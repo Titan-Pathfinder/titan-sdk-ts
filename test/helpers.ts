@@ -53,7 +53,10 @@ export function minimalServerInfo(): v1.ServerInfo {
 	return {
 		protocolVersion: { major: 1, minor: 0, patch: 0 },
 		settings: {
-			quoteUpdate: { intervalMs: { min: 100, max: 5000, default: 1000 } },
+			quoteUpdate: { 
+				intervalMs: { min: 100, max: 5000, default: 1000 },
+				num_quotes: { min: 1, max: 100, default: 3 }
+			},
 			swap: {
 				slippageBps: { min: 0, max: 1000, default: 50 },
 				onlyDirectRoutes: false,
@@ -63,12 +66,16 @@ export function minimalServerInfo(): v1.ServerInfo {
 				closeInputTokenAccount: false,
 				createOutputTokenAccount: true,
 			},
+			connection: {
+				concurrentStreams: 5,
+			},
 		},
 	};
 }
 
 export function minimalSwapQuotes(): v1.SwapQuotes {
 	return {
+		id: "test-quote-id",
 		inputMint: new Uint8Array(32),
 		outputMint: new Uint8Array(32),
 		swapMode: "ExactIn" as any,

@@ -77,24 +77,30 @@ export default [
 		},
 	}),
 
-	// Output for browser (ESM)
+	// Output for browser (ESM) - bundled for direct browser use
 	browserBundle({
-		//plugins: [esbuild({ target: target_browsers, minify: true })],
 		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
-		output: {
-			file: `./out/${name}-v${version}.js`,
-			format: "esm",
-			name: camelCaseName,
-			sourcemap: true,
-			compact: true,
-		},
+		output: [
+			{
+				file: `${libOutputPath}.browser.mjs`,
+				format: "esm",
+				sourcemap: true,
+				compact: true,
+			},
+			{
+				file: `./out/${name}-v${version}.js`,
+				format: "esm",
+				sourcemap: true,
+				compact: true,
+			}
+		],
 	}),
 
-	// Output for browser (UMD) - better compatibility
+	// Output for browser (UMD) - better compatibility with older bundlers
 	browserBundle({
 		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
 		output: {
-			file: `./out/${name}-v${version}.umd.js`,
+			file: `${libOutputPath}.browser.umd.js`,
 			format: "umd",
 			name: camelCaseName,
 			sourcemap: true,
@@ -102,11 +108,11 @@ export default [
 		},
 	}),
 
-	// Output for browser (IIFE) - immediate execution
+	// Output for browser (IIFE) - immediate execution, global variable
 	browserBundle({
 		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
 		output: {
-			file: `./out/${name}-v${version}.iife.js`,
+			file: `${libOutputPath}.browser.iife.js`,
 			format: "iife",
 			name: camelCaseName,
 			sourcemap: true,

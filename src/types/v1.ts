@@ -30,7 +30,9 @@ export interface ClientRequest {
 export type RequestData =
 	| { GetInfo: GetInfoRequest }
 	| { NewSwapQuoteStream: SwapQuoteRequest }
-	| { StopStream: StopStreamRequest };
+	| { StopStream: StopStreamRequest }
+	| { GetVenues: GetVenuesRequest }
+	| { ListProviders: ListProvidersRequest };
 
 export type GetInfoRequest = { [k: string]: never };
 
@@ -65,6 +67,13 @@ export interface SwapParams {
 	onlyDirectRoutes?: boolean;
 	// If set to true, only quotes that fit within 1232 bytes are returned.
 	addSizeConstraint?: boolean;
+	// The size constraint to use when `addSizeConstraint` is set.
+	// Default is set by the server, but is normally set to a value slightly less
+	// than the maximum transaction size of 1232 to allow room for additional
+	// instructions, such as compute budgets and fee accounts.
+	sizeConstraint?: number;
+	// If set, limit quotes to the given set of provider IDs.
+	providers?: string[];
 }
 
 export interface TransactionParams {
@@ -75,6 +84,22 @@ export interface TransactionParams {
 	// If true, an idempotent ATA will be added to the transactions, if supported
 	// by the providers.
 	createOutputTokenAccount?: boolean;
+	// The address of a token account for the output mint that will be used
+	// to collect fees.
+	// This account must already exist, or the user must add the ATA creation
+	// instruction themselves.
+	feeAccount?: Pubkey;
+	// Fee amount to take, in basis points.
+	//
+	// If not specified, default fee for the requester is used.
+	feeBps?: number;
+	// Whether the fee should be taken in terms of the input mint.
+	// Default is false, in which case the fee is taken in terms of the output mint.
+	feeFromInputMint?: boolean;
+	// Address of the token account into which to place the output of the swap.
+	// If not specified, the funds will be deposited into an ATA associated with the user's
+	// wallet.
+	outputAccount?: Pubkey;
 }
 
 export interface QuoteUpdateParams {
@@ -82,6 +107,7 @@ export interface QuoteUpdateParams {
 	//
 	// If not specified, the server default will be used.
 	intervalMs?: Uint64;
+	num_quotes: number;
 }
 
 export interface StopStreamRequest {
@@ -89,23 +115,30 @@ export interface StopStreamRequest {
 	id: number;
 }
 
+export interface GetVenuesRequest {
+	includeProgramIds?: boolean;
+}
+
+export interface ListProvidersRequest {
+	// Whether or not to include icon URLs for each provider.
+	// By default, icons are not included.
+	includeIcons?: boolean;
+}
+
 /****** Server Messages ******/
 
-// Note: not an ideal representation, but TypeScript doesn't really seem to like
-// defining an exeternally tagged enumeration as a discriminated union, or at
-// least I am unsure of how to do that effectively.
-export interface ServerMessage {
-	Response?: ResponseSuccess;
-	Error?: ResponseError;
-	StreamData?: StreamData;
-	StreamEnd?: StreamEnd;
-}
+export type ServerMessage = 
+| { Response: ResponseSuccess }
+| { Error: ResponseError }
+| { StreamData: StreamData }
+| { StreamEnd: StreamEnd };
 
-export interface ResponseData {
-	GetInfo?: ServerInfo;
-	NewSwapQuoteStream?: QuoteSwapStreamResponse;
-	StreamStopped?: StopStreamResponse;
-}
+export type ResponseData = 
+| { GetInfo: ServerInfo }
+| { NewSwapQuoteStream: QuoteSwapStreamResponse }
+| { StreamStopped: StopStreamResponse }
+| { GetVenues: VenueInfo }
+| { ListProviders: ProviderInfo[] };
 
 export enum StreamDataType {
 	SwapQuotes = "SwapQuotes",
@@ -137,9 +170,7 @@ export interface ResponseError {
 	message: string;
 }
 
-export interface StreamDataPayload {
-	SwapQuotes?: SwapQuotes;
-}
+export type StreamDataPayload = { SwapQuotes: SwapQuotes };
 
 export interface StreamData {
 	// ID of the stream.
@@ -171,9 +202,14 @@ export interface VersionInfo {
 export interface QuoteUpdateSettings {
 	// Bounds and default for `intervalMs` parameter.
 	intervalMs: {
-		min: Uint64;
-		max: Uint64;
-		default: Uint64;
+		min: number;
+		max: number;
+		default: number;
+	};
+	num_quotes: {
+		min: number;
+		max: number;
+		default: number;
 	};
 }
 
@@ -193,6 +229,11 @@ export interface TransactionSettings {
 	createOutputTokenAccount: boolean;
 }
 
+export interface ConnectionSettings {
+	// Number of concurrent streams the user is allowed.
+	concurrentStreams: number;
+}
+
 export interface ServerSettings {
 	// Settings and parameter bounds for quote updates.
 	quoteUpdate: QuoteUpdateSettings;
@@ -200,6 +241,8 @@ export interface ServerSettings {
 	swap: SwapSettings;
 	// Settings and parameter bounds for transaction generation.
 	transaction: TransactionSettings;
+	// Settings and limits for the user's connection to the server.
+	connection: ConnectionSettings;
 }
 
 export interface ServerInfo {
@@ -211,7 +254,7 @@ export interface ServerInfo {
 
 export interface QuoteSwapStreamResponse {
 	// The interval, in milliseconds, in which the server will provide updates to the quotes.
-	intervalMs: Uint64;
+	intervalMs: number;
 }
 
 export interface StopStreamResponse {
@@ -219,7 +262,23 @@ export interface StopStreamResponse {
 	id: number;
 }
 
+export interface VenueInfo {
+	labels: string[];
+	programIds?: Pubkey[];
+}
+
+export interface ProviderInfo {
+	id: string;
+	name: string;
+	kind: ProviderKind;
+	iconUri48?: string;
+}
+  
+export type ProviderKind = "DexAggregator" | "RFQ";
+
 export interface SwapQuotes {
+	// Unique Quote identifier.
+	id: string;
 	// Address of the input mint for this quote.
 	inputMint: Uint8Array;
 	// Address of the output mint for this quote.
@@ -227,16 +286,16 @@ export interface SwapQuotes {
 	// What swap mode was used for the quotes.
 	swapMode: SwapMode;
 	// Amount used for the quotes.
-	amount: Uint64;
+	amount: number;
 	// A mapping of a provider identifier to their quoted route.
 	quotes: { [key: string]: SwapRoute };
 }
 
 export interface SwapRoute {
 	// How many input tokens are expected to go through this route.
-	inAmount: Uint64;
+	inAmount: number;
 	// How many output tokens are expected to come out of this route.
-	outAmount: Uint64;
+	outAmount: number;
 	// Amount of slippage encurred, in basis points.
 	slippageBps: number;
 	// Platform fee information; if such a fee is charged by the provider.
@@ -248,14 +307,27 @@ export interface SwapRoute {
 	// Address lookup tables necessary to load.
 	addressLookupTables: Pubkey[];
 	// Context slot for the route provided.
-	contextSlot?: Uint64;
+	contextSlot?: number;
 	// Amount of time taken to generate the quote in nanoseconds; if known.
-	timeTaken?: Uint64;
+	timeTaken?: number;
 	// If this route expires by time, the time at which it expires,
 	// as a millisecond UNIX timestamp.
-	expiresAtMs?: Uint64;
+	expiresAtMs?: number;
 	// If this route expires by slot, the last slot at which the route is valid.
-	expiresAfterSlot?: Uint64;
+	expiresAfterSlot?: number;
+	// The number of compute units this transaction is expected to consume, if known.
+	computeUnits?: number;
+	// Recommended number of compute units to use for the budget for this route, if known.
+	// The number of compute units used by a route can fluctuate based on changes on-chain,
+	// so the server will recommend a higher limit that should allow the transaction to execute
+	// in the vast majority of cases.
+	computeUnitsSafe?: number;
+	// Transaction for the user to sign, if instructions not provided.
+	transaction?: Uint8Array;
+	// Provider-specific reference ID for this quote.
+	//
+	// Mainly provided by RFQ-based providers such as Pyth Express Relay and Hashflow.
+	referenceId?: string;
 }
 
 export interface RoutePlanStep {
@@ -270,14 +342,14 @@ export interface RoutePlanStep {
 	// Address of the output mint for this swap.
 	outputMint: Uint8Array;
 	// How many input tokens are expected to go through this step.
-	inAmount: Uint64;
+	inAmount: number;
 	// How many output tokens are expected to come out of this step.
-	outAmount: Uint64;
+	outAmount: number;
 	// What what proportion, in parts per billion, of the order flow is allocated
 	// to flow through this pool.
 	allocPpb: number;
 	// Address of the mint in which the fee is charged.
-	feeMint?: Pubkey;
+	feeMint?: Uint8Array;
 	// The amount of tokens charged as a fee for this swap.
 	feeAmount?: number;
 	// Context slot for the pool data, if known.
@@ -286,7 +358,7 @@ export interface RoutePlanStep {
 
 export interface PlatformFee {
 	/// Amount of tokens taken as a fee.
-	amount: Uint64;
+	amount: number;
 	/// Fee percentage, in basis points.
 	fee_bps: number;
 }

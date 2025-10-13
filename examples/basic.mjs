@@ -13,7 +13,7 @@ import { env } from "node:process";
 // - SLIPPAGE_BPS	: Allowable slippage in basis points, defaults to 50 (0.5%)
 // - NUM_QUOTES		: Maximum number of quotes to receive per stream event, default 3
 const WS_URL = `${env["WS_URL"]}?auth=${env["AUTH_TOKEN"]}`;
-const USER_PUBLIC_KEY = bs58.decode(env["USER_PUBLIC_KEY"]);
+const USER_PUBLIC_KEY = bs58.decode(env["USER_PUBLIC_KEY"] || "Fake111111111111111111111111111111111111111");
 const INPUT_MINT = bs58.decode(env["INPUT_MINT"] || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const OUTPUT_MINT = bs58.decode(env["OUTPUT_MINT"] || "So11111111111111111111111111111111111111112");
 const AMOUNT = parseInt(env["AMOUNT"] || "1000000");

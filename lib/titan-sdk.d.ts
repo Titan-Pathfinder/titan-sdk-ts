@@ -481,15 +481,19 @@ declare class ProtocolError extends Error {
 interface ResponseWithStream<T, D> {
     response: T;
     stream: ReadableStream<D>;
+    streamId: number;
 }
 declare class V1Client {
     private socket;
     private codec;
     private nextId;
     private _closed;
+    private _closing;
+    private _closeEvent;
     private results;
     private quoteStreams;
     private streamStopping;
+    private closeListeners;
     static connect(url: string): Promise<V1Client>;
     constructor(socket: WebSocketInstance, codec: V1ClientCodec);
     private nextRequestId;
@@ -497,6 +501,16 @@ declare class V1Client {
      * Returns true if the underlying WebSocket connection is closed.
      */
     get closed(): boolean;
+    /**
+     * Returns a promise that resolves when the underlying WebSocket connection is closed.
+     */
+    listen_closed(): Promise<ICloseEvent>;
+    /**
+     * Closes the WebSocket if it is not already closed.
+     *
+     * @returns A promise that is resolved when the WebSocket is closed.
+     */
+    close(): Promise<ICloseEvent>;
     /**
      * Requests the server stop a running stream with the given ID.
      *

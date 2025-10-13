@@ -116,6 +116,10 @@ export class ProtocolError extends Error {
 
 type Resolver<T> = (result: T | PromiseLike<T>) => void;
 type Rejector = (error?: unknown) => void;
+type ResolverAndRejector<T> = {
+	resolve: Resolver<T>,
+	reject: Rejector,
+};
 
 enum ResponseHandlerKind {
 	GetInfo = "GetInfo",
@@ -272,6 +276,7 @@ class ProviderInfoResponseHandler extends ResponseHandler {
 export interface ResponseWithStream<T, D> {
 	response: T;
 	stream: ReadableStream<D>;
+	streamId: number;
 }
 
 export class V1Client {
@@ -279,13 +284,16 @@ export class V1Client {
 	private codec: V1ClientCodec;
 	private nextId: number;
 	private _closed: boolean;
+	private _closing: boolean;
+	private _closeEvent: ICloseEvent | null;
 
 	private results: Map<number, ResponseHandler>;
 	private quoteStreams: Map<number, ReadableStreamDefaultController<v1.SwapQuotes>>;
 	private streamStopping: Map<number, boolean>;
+	private closeListeners: ResolverAndRejector<ICloseEvent>[];
 
 	static connect(url: string): Promise<V1Client> {
-		const ws : WebSocketInstance = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
+		const ws: WebSocketInstance = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
 		ws.binaryType = "arraybuffer";
 
 		const { promise, resolve, reject } = Promise.withResolvers<V1Client>();
@@ -320,6 +328,9 @@ export class V1Client {
 		this.quoteStreams = new Map();
 		this.streamStopping = new Map();
 		this._closed = false;
+		this._closing = false;
+		this._closeEvent = null;
+		this.closeListeners = [];
 
 		this.socket.onmessage = (message) => {
 			this.handleMessage(message);
@@ -343,6 +354,33 @@ export class V1Client {
 	 */
 	public get closed() {
 		return this._closed;
+	}
+
+	/**
+	 * Returns a promise that resolves when the underlying WebSocket connection is closed.
+	 */
+	public listen_closed(): Promise<ICloseEvent> {
+		if (this._closeEvent === null) {
+			let { promise, resolve, reject } = Promise.withResolvers<ICloseEvent>();
+			this.closeListeners.push({ resolve, reject });
+			return promise;
+		}
+		return Promise.resolve(this._closeEvent);
+	}
+
+	/**
+	 * Closes the WebSocket if it is not already closed.
+	 *
+	 * @returns A promise that is resolved when the WebSocket is closed.
+	 */
+	public close(): Promise<ICloseEvent> {
+		let promise = this.listen_closed();
+		// Start closing socket if not already closed or closing.
+		if (!this._closing && !this._closed) {
+			this._closing = true;
+			this.socket.close();
+		}
+		return promise;
 	}
 
 	/**
@@ -421,7 +459,7 @@ export class V1Client {
 
 		return promise;
 	}
-	
+
 	/**
 	 * Requests a list of venues from the server.
 	 * 
@@ -433,7 +471,7 @@ export class V1Client {
 		const requestId = this.nextRequestId();
 		const { promise, handler } = VenueInfoResponseHandler.create();
 		this.results.set(requestId, handler);
-		
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
@@ -457,7 +495,7 @@ export class V1Client {
 		const requestId = this.nextRequestId();
 		const { promise, handler } = ProviderInfoResponseHandler.create();
 		this.results.set(requestId, handler);
-		
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
@@ -553,6 +591,7 @@ export class V1Client {
 				> = {
 					response: message.data.NewSwapQuoteStream,
 					stream: stream,
+					streamId: streamInfo.id,
 				};
 				handler.resolveNewSwapQuoteStream(result);
 			}
@@ -644,10 +683,14 @@ export class V1Client {
 		this._closed = true;
 		const error = new ConnectionClosed(event);
 		this.rejectAllWithError(error);
+		for (const listener of this.closeListeners) {
+			listener.resolve(event);
+		}
+		this.closeListeners = [];
 	}
 
 	private handleError(error: Error) {
-		this._closed = true;
+		this.socket.close(1002); // protocol error
 		const new_error = new ConnectionError(error);
 		this.rejectAllWithError(new_error);
 	}

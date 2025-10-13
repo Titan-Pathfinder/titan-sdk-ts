@@ -16,7 +16,7 @@ const rawPackageJSON = await fs.readFile("package.json", { encoding: "utf8" });
 const { name, version, main } = JSON.parse(rawPackageJSON);
 
 const libOutputPath = main.replace(/\.[cm]?js$/, "");
-const camelCaseName = name.replace(/-./g, (x) => x[1].toUpperCase());
+const camelCaseName = name.replace(/^@[^/]+\//, '').replace(/-./g, (x) => x[1].toUpperCase());
 
 /**
  * @param {string} id
@@ -44,7 +44,14 @@ const bundle = (config) => ({
 const browserBundle = (config) => ({
 	...config,
 	input: "./src/index.ts",
-	external: [], // Bundle all dependencies for browser
+	// Exclude WASM modules that don't work well in browser bundles
+	external: (id) => {
+		// Exclude WASM files and problematic modules
+		if (id.includes('.wasm') || id.includes('brotli-wasm')) {
+			return true;
+		}
+		return false;
+	},
 });
 
 export default [
@@ -79,44 +86,72 @@ export default [
 
 	// Output for browser (ESM) - bundled for direct browser use
 	browserBundle({
-		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
-		output: [
-			{
-				file: `${libOutputPath}.browser.mjs`,
-				format: "esm",
-				sourcemap: false,
-				compact: true,
-			},
-			{
-				file: `./out/${name}-v${version}.js`,
-				format: "esm",
-				sourcemap: false,
-				compact: true,
-			}
+		plugins: [
+			typescript(), 
+			commonjs(), 
+			nodeResolve({ 
+				browser: true,
+				preferBuiltins: false 
+			}), 
+			json(), 
+			nodePolyfills({
+				include: ['buffer', 'process', 'util']
+			})
 		],
+		output: {
+			file: `${libOutputPath}.browser.mjs`,
+			format: "esm",
+			sourcemap: false,
+			compact: true,
+			inlineDynamicImports: true,
+		},
 	}),
 
 	// Output for browser (UMD) - better compatibility with older bundlers
 	browserBundle({
-		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
+		plugins: [
+			typescript(), 
+			commonjs(), 
+			nodeResolve({ 
+				browser: true,
+				preferBuiltins: false 
+			}), 
+			json(), 
+			nodePolyfills({
+				include: ['buffer', 'process', 'util']
+			})
+		],
 		output: {
 			file: `${libOutputPath}.browser.umd.js`,
 			format: "umd",
 			name: camelCaseName,
 			sourcemap: false,
 			compact: true,
+			inlineDynamicImports: true,
 		},
 	}),
 
 	// Output for browser (IIFE) - immediate execution, global variable
 	browserBundle({
-		plugins: [typescript(), commonjs(), nodeResolve(), json(), nodePolyfills()],
+		plugins: [
+			typescript(), 
+			commonjs(), 
+			nodeResolve({ 
+				browser: true,
+				preferBuiltins: false 
+			}), 
+			json(), 
+			nodePolyfills({
+				include: ['buffer', 'process', 'util']
+			})
+		],
 		output: {
 			file: `${libOutputPath}.browser.iife.js`,
 			format: "iife",
 			name: camelCaseName,
 			sourcemap: false,
 			compact: true,
+			inlineDynamicImports: true,
 		},
 	}),
 ];

@@ -1,4 +1,4 @@
-import { V1Client, types } from "titan-sdk-ts";
+import { V1Client, types } from "@titanexchange/sdk-ts";
 import bs58 from "bs58";
 import { env } from "node:process";
 

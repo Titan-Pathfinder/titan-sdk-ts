@@ -12,6 +12,10 @@ import {
 	emitResponseStopStream,
 	emitError,
 	failNextDecode,
+	emitResponseGetVenues,
+	minimalVenueInfo,
+	emitResponseListProviders,
+	minimalProviderInfo,
 } from "./helpers";
 
 describe("V1Client (unit)", () => {
@@ -63,6 +67,35 @@ describe("V1Client (unit)", () => {
 		emitStreamEnd(socket, codec, 42);
 		const done = await reader.read();
 		expect(done.done).toBe(true);
+	});
+
+	test("getVenues returns venues", async () => {
+		const socket = new FakeWebSocket();
+		const codec = new StubCodec();
+		const client = new V1Client(socket as any, codec as any);
+
+		const venuesP = client.getVenues();
+		expect(codec.encodedMessages[0]).toMatchObject({ id: 0, data: { GetVenues: {} } });
+
+		// Server responds with venues
+		emitResponseGetVenues(socket, codec, 0, minimalVenueInfo());
+
+		const info = await venuesP;
+		expect(info.labels).toEqual(minimalVenueInfo().labels);
+	});
+
+	test("listProviders returns providers", async () => {
+		const socket = new FakeWebSocket();
+		const codec = new StubCodec();
+		const client = new V1Client(socket as any, codec as any);
+
+		const providersP = client.listProviders();
+		expect(codec.encodedMessages[0]).toMatchObject({ id: 0, data: { ListProviders: {} } });
+
+		emitResponseListProviders(socket, codec, 0, minimalProviderInfo());
+		
+		const providers = await providersP;
+		expect(providers).toEqual(minimalProviderInfo());
 	});
 
 	test("stream end with error surfaces StreamError", async () => {

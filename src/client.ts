@@ -116,11 +116,17 @@ export class ProtocolError extends Error {
 
 type Resolver<T> = (result: T | PromiseLike<T>) => void;
 type Rejector = (error?: unknown) => void;
+type ResolverAndRejector<T> = {
+	resolve: Resolver<T>,
+	reject: Rejector,
+};
 
 enum ResponseHandlerKind {
 	GetInfo = "GetInfo",
 	StopStream = "StopStream",
 	NewSwapQuoteStream = "NewSwapQuoteStream",
+	GetVenues = "GetVenues",
+	ListProviders = "ListProviders",
 }
 
 interface HandlerAndPromise<T> {
@@ -159,6 +165,14 @@ abstract class ResponseHandler {
 	resolveNewSwapQuoteStream(result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>) {
 		this.reject(new ProtocolError(result, `incorrect type (QuoteSwapStreamResponse) for handler of kind ${this.kind}`))
 	}
+
+	resolveGetVenues(result: v1.VenueInfo) {
+		this.reject(new ProtocolError(result, `incorrect type (VenueInfo) for handler of kind ${this.kind}`));
+	}
+
+	resolveListProviders(result: v1.ProviderInfo[]) {
+		this.reject(new ProtocolError(result, `incorrect type (ProviderInfo[]) for handler of kind ${this.kind}`));
+	}
 }
 
 class ServerInfoResponseHandler extends ResponseHandler {
@@ -184,7 +198,7 @@ class StopStreamResponseHandler extends ResponseHandler {
 	resolver: Resolver<v1.StopStreamResponse>;
 
 	constructor(resolver: Resolver<v1.StopStreamResponse>, rejector: Rejector) {
-		super(ResponseHandlerKind.GetInfo, rejector);
+		super(ResponseHandlerKind.StopStream, rejector);
 		this.resolver = resolver;
 	}
 
@@ -203,7 +217,7 @@ class NewSwapQuoteStreamHandler extends ResponseHandler {
 	resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>;
 
 	constructor(resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>, rejector: Rejector) {
-		super(ResponseHandlerKind.GetInfo, rejector);
+		super(ResponseHandlerKind.NewSwapQuoteStream, rejector);
 		this.resolver = resolver;
 	}
 
@@ -218,12 +232,51 @@ class NewSwapQuoteStreamHandler extends ResponseHandler {
 	}
 }
 
+class VenueInfoResponseHandler extends ResponseHandler {
+	resolver: Resolver<v1.VenueInfo>;
+
+	constructor(resolver: Resolver<v1.VenueInfo>, rejector: Rejector) {
+		super(ResponseHandlerKind.GetVenues, rejector);
+		this.resolver = resolver;
+	}
+
+	override resolveGetVenues(result: v1.VenueInfo): void {
+		this.resolver(result);
+	}
+
+	static create(): HandlerAndPromise<v1.VenueInfo> {
+		const { promise, resolve, reject } = Promise.withResolvers<v1.VenueInfo>();
+		const handler = new VenueInfoResponseHandler(resolve, reject);
+		return { promise, handler };
+	}
+}
+
+class ProviderInfoResponseHandler extends ResponseHandler {
+	resolver: Resolver<v1.ProviderInfo[]>;
+
+	constructor(resolver: Resolver<v1.ProviderInfo[]>, rejector: Rejector) {
+		super(ResponseHandlerKind.ListProviders, rejector);
+		this.resolver = resolver;
+	}
+
+	override resolveListProviders(result: v1.ProviderInfo[]): void {
+		this.resolver(result);
+	}
+
+	static create(): HandlerAndPromise<v1.ProviderInfo[]> {
+		const { promise, resolve, reject } = Promise.withResolvers<v1.ProviderInfo[]>();
+		const handler = new ProviderInfoResponseHandler(resolve, reject);
+		return { promise, handler };
+	}
+}
+
 /**
  * Resolved value of requests that result in a stream.
  */
 export interface ResponseWithStream<T, D> {
 	response: T;
 	stream: ReadableStream<D>;
+	streamId: number;
 }
 
 export class V1Client {
@@ -231,13 +284,16 @@ export class V1Client {
 	private codec: V1ClientCodec;
 	private nextId: number;
 	private _closed: boolean;
+	private _closing: boolean;
+	private _closeEvent: ICloseEvent | null;
 
 	private results: Map<number, ResponseHandler>;
 	private quoteStreams: Map<number, ReadableStreamDefaultController<v1.SwapQuotes>>;
 	private streamStopping: Map<number, boolean>;
+	private closeListeners: ResolverAndRejector<ICloseEvent>[];
 
 	static connect(url: string): Promise<V1Client> {
-		const ws : WebSocketInstance = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
+		const ws: WebSocketInstance = new WebSocket(url, v1.WEBSOCKET_SUBPROTOCOLS);
 		ws.binaryType = "arraybuffer";
 
 		const { promise, resolve, reject } = Promise.withResolvers<V1Client>();
@@ -272,6 +328,9 @@ export class V1Client {
 		this.quoteStreams = new Map();
 		this.streamStopping = new Map();
 		this._closed = false;
+		this._closing = false;
+		this._closeEvent = null;
+		this.closeListeners = [];
 
 		this.socket.onmessage = (message) => {
 			this.handleMessage(message);
@@ -295,6 +354,33 @@ export class V1Client {
 	 */
 	public get closed() {
 		return this._closed;
+	}
+
+	/**
+	 * Returns a promise that resolves when the underlying WebSocket connection is closed.
+	 */
+	public listen_closed(): Promise<ICloseEvent> {
+		if (this._closeEvent === null) {
+			let { promise, resolve, reject } = Promise.withResolvers<ICloseEvent>();
+			this.closeListeners.push({ resolve, reject });
+			return promise;
+		}
+		return Promise.resolve(this._closeEvent);
+	}
+
+	/**
+	 * Closes the WebSocket if it is not already closed.
+	 *
+	 * @returns A promise that is resolved when the WebSocket is closed.
+	 */
+	public close(): Promise<ICloseEvent> {
+		let promise = this.listen_closed();
+		// Start closing socket if not already closed or closing.
+		if (!this._closing && !this._closed) {
+			this._closing = true;
+			this.socket.close();
+		}
+		return promise;
 	}
 
 	/**
@@ -367,6 +453,53 @@ export class V1Client {
 			id: requestId,
 			data: {
 				NewSwapQuoteStream: params,
+			},
+		};
+		this.sendMessage(message);
+
+		return promise;
+	}
+
+	/**
+	 * Requests a list of venues from the server.
+	 * 
+	 * @param params - (optional) includeProgramIds - Whether to include program ID for each venue..
+	 * 
+	 * @returns A promise that is resolved with the list of venues.
+	 */
+	public getVenues(params?: v1.GetVenuesRequest): Promise<v1.VenueInfo> {
+		const requestId = this.nextRequestId();
+		const { promise, handler } = VenueInfoResponseHandler.create();
+		this.results.set(requestId, handler);
+
+		const message: v1.ClientRequest = {
+			id: requestId,
+			data: {
+				GetVenues: params || {},
+			},
+		};
+		this.sendMessage(message);
+
+		return promise;
+	}
+
+
+	/**
+	 * Requests a list of providers from the server.
+	 *
+	 * @param params - (optional) includeIcons - Whether to include icons in the response.
+	 * 
+	 * @returns A promise that is resolved with the list of providers.
+	 */
+	public listProviders(params?: v1.ListProvidersRequest): Promise<v1.ProviderInfo[]> {
+		const requestId = this.nextRequestId();
+		const { promise, handler } = ProviderInfoResponseHandler.create();
+		this.results.set(requestId, handler);
+
+		const message: v1.ClientRequest = {
+			id: requestId,
+			data: {
+				ListProviders: params || {},
 			},
 		};
 		this.sendMessage(message);
@@ -458,10 +591,16 @@ export class V1Client {
 				> = {
 					response: message.data.NewSwapQuoteStream,
 					stream: stream,
+					streamId: streamInfo.id,
 				};
 				handler.resolveNewSwapQuoteStream(result);
 			}
-		} else if ("StreamStopped" in message.data) {
+		} else if ("GetVenues" in message.data) {
+			handler.resolveGetVenues(message.data.GetVenues);
+		} else if ("ListProviders" in message.data) {
+			handler.resolveListProviders(message.data.ListProviders);
+		}
+		else if ("StreamStopped" in message.data) {
 			handler.resolveStopStream(message.data.StreamStopped);
 		} else {
 			const response_type = Object.keys(message.data).at(0) || "<none>";
@@ -544,12 +683,16 @@ export class V1Client {
 		this._closed = true;
 		const error = new ConnectionClosed(event);
 		this.rejectAllWithError(error);
+		for (const listener of this.closeListeners) {
+			listener.resolve(event);
+		}
+		this.closeListeners = [];
 	}
 
 	private handleError(error: Error) {
-		this._closed = true;
 		const new_error = new ConnectionError(error);
 		this.rejectAllWithError(new_error);
+		this.socket.close(1002); // protocol error
 	}
 
 	private rejectWithError(requestId: number, error: unknown) {

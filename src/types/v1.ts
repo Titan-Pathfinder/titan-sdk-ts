@@ -10,7 +10,6 @@ export const WEBSOCKET_SUBPROTOCOLS = [
 ];
 
 /****** Client Requests ******/
-
 /**
  * Denotes the type is encoded as an unsigned 64-bit integer.
  *

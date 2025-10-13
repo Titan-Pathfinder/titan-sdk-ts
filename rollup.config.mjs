@@ -84,13 +84,13 @@ export default [
 			{
 				file: `${libOutputPath}.browser.mjs`,
 				format: "esm",
-				sourcemap: true,
+				sourcemap: false,
 				compact: true,
 			},
 			{
 				file: `./out/${name}-v${version}.js`,
 				format: "esm",
-				sourcemap: true,
+				sourcemap: false,
 				compact: true,
 			}
 		],
@@ -103,7 +103,7 @@ export default [
 			file: `${libOutputPath}.browser.umd.js`,
 			format: "umd",
 			name: camelCaseName,
-			sourcemap: true,
+			sourcemap: false,
 			compact: true,
 		},
 	}),
@@ -115,7 +115,7 @@ export default [
 			file: `${libOutputPath}.browser.iife.js`,
 			format: "iife",
 			name: camelCaseName,
-			sourcemap: true,
+			sourcemap: false,
 			compact: true,
 		},
 	}),

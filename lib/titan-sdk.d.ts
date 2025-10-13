@@ -525,6 +525,22 @@ declare class V1Client {
      * that will stream the current best quote for each provider.
      */
     newSwapQuoteStream(params: SwapQuoteRequest): Promise<ResponseWithStream<QuoteSwapStreamResponse, SwapQuotes>>;
+    /**
+     * Requests a list of venues from the server.
+     *
+     * @param params - (optional) includeProgramIds - Whether to include program ID for each venue..
+     *
+     * @returns A promise that is resolved with the list of venues.
+     */
+    getVenues(params?: GetVenuesRequest): Promise<VenueInfo>;
+    /**
+     * Requests a list of providers from the server.
+     *
+     * @param params - (optional) includeIcons - Whether to include icons in the response.
+     *
+     * @returns A promise that is resolved with the list of providers.
+     */
+    listProviders(params?: ListProvidersRequest): Promise<ProviderInfo[]>;
     private sendMessage;
     private handleMessage;
     private handleServerMessage;

@@ -93,6 +93,36 @@ export function minimalSwapQuotes(): v1.SwapQuotes {
 	};
 }
 
+export function minimalVenueInfo(): v1.VenueInfo {
+	return {
+		labels: ["test-venue", "test-venue-2", "test-venue-3"],
+	};
+}
+
+export function minimalProviderInfo(): v1.ProviderInfo[] {
+	return [
+		{
+			id: "test-provider",
+			name: "Test Provider",
+			kind: "DexAggregator",
+			iconUri48: "https://test-provider.com/icon.png",
+		},
+		{
+			id: "test-provider-2",
+			name: "Test Provider 2",
+			kind: "RFQ",
+			iconUri48: "https://test-provider-2.com/icon.png",
+		},
+		{
+			id: "test-provider-3",
+			name: "Test Provider 3",
+			kind: "DexAggregator",
+			iconUri48: "https://test-provider-3.com/icon.png",
+		},
+	];
+}
+
+
 // Emit helpers for unit tests
 export function emitResponseGetInfo(socket: FakeWebSocket, codec: StubCodec, requestId: number, info: v1.ServerInfo) {
 	codec.setNextDecode([{ Response: { requestId, data: { GetInfo: info } } }]);
@@ -115,6 +145,16 @@ export function emitResponseNewSwapQuoteStream(
 			},
 		},
 	]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitResponseGetVenues(socket: FakeWebSocket, codec: StubCodec, requestId: number, venues: v1.VenueInfo) {
+	codec.setNextDecode([{ Response: { requestId, data: { GetVenues: venues } } }]);
+	socket.emitBinary(new Uint8Array([0]).buffer);
+}
+
+export function emitResponseListProviders(socket: FakeWebSocket, codec: StubCodec, requestId: number, providers: v1.ProviderInfo[]) {
+	codec.setNextDecode([{ Response: { requestId, data: { ListProviders: providers } } }]);
 	socket.emitBinary(new Uint8Array([0]).buffer);
 }
 

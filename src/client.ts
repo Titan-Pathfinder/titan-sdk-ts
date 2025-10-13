@@ -121,6 +121,8 @@ enum ResponseHandlerKind {
 	GetInfo = "GetInfo",
 	StopStream = "StopStream",
 	NewSwapQuoteStream = "NewSwapQuoteStream",
+	GetVenues = "GetVenues",
+	ListProviders = "ListProviders",
 }
 
 interface HandlerAndPromise<T> {
@@ -159,6 +161,14 @@ abstract class ResponseHandler {
 	resolveNewSwapQuoteStream(result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>) {
 		this.reject(new ProtocolError(result, `incorrect type (QuoteSwapStreamResponse) for handler of kind ${this.kind}`))
 	}
+
+	resolveGetVenues(result: v1.VenueInfo) {
+		this.reject(new ProtocolError(result, `incorrect type (VenueInfo) for handler of kind ${this.kind}`));
+	}
+
+	resolveListProviders(result: v1.ProviderInfo[]) {
+		this.reject(new ProtocolError(result, `incorrect type (ProviderInfo[]) for handler of kind ${this.kind}`));
+	}
 }
 
 class ServerInfoResponseHandler extends ResponseHandler {
@@ -184,7 +194,7 @@ class StopStreamResponseHandler extends ResponseHandler {
 	resolver: Resolver<v1.StopStreamResponse>;
 
 	constructor(resolver: Resolver<v1.StopStreamResponse>, rejector: Rejector) {
-		super(ResponseHandlerKind.GetInfo, rejector);
+		super(ResponseHandlerKind.StopStream, rejector);
 		this.resolver = resolver;
 	}
 
@@ -203,7 +213,7 @@ class NewSwapQuoteStreamHandler extends ResponseHandler {
 	resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>;
 
 	constructor(resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>, rejector: Rejector) {
-		super(ResponseHandlerKind.GetInfo, rejector);
+		super(ResponseHandlerKind.NewSwapQuoteStream, rejector);
 		this.resolver = resolver;
 	}
 
@@ -214,6 +224,44 @@ class NewSwapQuoteStreamHandler extends ResponseHandler {
 	static create(): HandlerAndPromise<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>> {
 		const { promise, resolve, reject } = Promise.withResolvers<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>();
 		const handler = new NewSwapQuoteStreamHandler(resolve, reject);
+		return { promise, handler };
+	}
+}
+
+class VenueInfoResponseHandler extends ResponseHandler {
+	resolver: Resolver<v1.VenueInfo>;
+
+	constructor(resolver: Resolver<v1.VenueInfo>, rejector: Rejector) {
+		super(ResponseHandlerKind.GetVenues, rejector);
+		this.resolver = resolver;
+	}
+
+	override resolveGetVenues(result: v1.VenueInfo): void {
+		this.resolver(result);
+	}
+
+	static create(): HandlerAndPromise<v1.VenueInfo> {
+		const { promise, resolve, reject } = Promise.withResolvers<v1.VenueInfo>();
+		const handler = new VenueInfoResponseHandler(resolve, reject);
+		return { promise, handler };
+	}
+}
+
+class ProviderInfoResponseHandler extends ResponseHandler {
+	resolver: Resolver<v1.ProviderInfo[]>;
+
+	constructor(resolver: Resolver<v1.ProviderInfo[]>, rejector: Rejector) {
+		super(ResponseHandlerKind.ListProviders, rejector);
+		this.resolver = resolver;
+	}
+
+	override resolveListProviders(result: v1.ProviderInfo[]): void {
+		this.resolver(result);
+	}
+
+	static create(): HandlerAndPromise<v1.ProviderInfo[]> {
+		const { promise, resolve, reject } = Promise.withResolvers<v1.ProviderInfo[]>();
+		const handler = new ProviderInfoResponseHandler(resolve, reject);
 		return { promise, handler };
 	}
 }
@@ -373,6 +421,53 @@ export class V1Client {
 
 		return promise;
 	}
+	
+	/**
+	 * Requests a list of venues from the server.
+	 * 
+	 * @param params - (optional) includeProgramIds - Whether to include program ID for each venue..
+	 * 
+	 * @returns A promise that is resolved with the list of venues.
+	 */
+	public getVenues(params?: v1.GetVenuesRequest): Promise<v1.VenueInfo> {
+		const requestId = this.nextRequestId();
+		const { promise, handler } = VenueInfoResponseHandler.create();
+		this.results.set(requestId, handler);
+		
+		const message: v1.ClientRequest = {
+			id: requestId,
+			data: {
+				GetVenues: params || {},
+			},
+		};
+		this.sendMessage(message);
+
+		return promise;
+	}
+
+
+	/**
+	 * Requests a list of providers from the server.
+	 *
+	 * @param params - (optional) includeIcons - Whether to include icons in the response.
+	 * 
+	 * @returns A promise that is resolved with the list of providers.
+	 */
+	public listProviders(params?: v1.ListProvidersRequest): Promise<v1.ProviderInfo[]> {
+		const requestId = this.nextRequestId();
+		const { promise, handler } = ProviderInfoResponseHandler.create();
+		this.results.set(requestId, handler);
+		
+		const message: v1.ClientRequest = {
+			id: requestId,
+			data: {
+				ListProviders: params || {},
+			},
+		};
+		this.sendMessage(message);
+
+		return promise;
+	}
 
 	// Sends the message on the socket, rejecting the promise if there is any encoding error.
 	private sendMessage(message: v1.ClientRequest) {
@@ -461,7 +556,12 @@ export class V1Client {
 				};
 				handler.resolveNewSwapQuoteStream(result);
 			}
-		} else if ("StreamStopped" in message.data) {
+		} else if ("GetVenues" in message.data) {
+			handler.resolveGetVenues(message.data.GetVenues);
+		} else if ("ListProviders" in message.data) {
+			handler.resolveListProviders(message.data.ListProviders);
+		}
+		else if ("StreamStopped" in message.data) {
 			handler.resolveStopStream(message.data.StreamStopped);
 		} else {
 			const response_type = Object.keys(message.data).at(0) || "<none>";

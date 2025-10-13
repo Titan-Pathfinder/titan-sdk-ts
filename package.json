@@ -1,5 +1,5 @@
 {
-	"name": "@titanexchange/typescript",
+	"name": "titan-sdk-ts",
 	"version": "0.1.0",
 	"description": "Client SDK for the Titan API",
 	"author": "Titan Exchange <info@titandex.io>",

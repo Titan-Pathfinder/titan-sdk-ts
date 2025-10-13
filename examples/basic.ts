@@ -1,8 +1,8 @@
-import { V1Client, types } from "titan-sdk";
+import { V1Client, types } from "titan-sdk-ts";
 import bs58 from "bs58";
 
 // WebSocket URL with authentication token
-const WS_URL = "URL_HERE?auth=AUTH_TOKEN_HERE";
+const WS_URL = "WS_URL?auth=AUTH_TOKEN";
 
 async function basicExample() {
   try {
@@ -28,7 +28,7 @@ async function basicExample() {
         slippageBps: 50 // 0.5% slippage
       },
       transaction: {
-        userPublicKey: bs58.decode("USER_PUBLIC_KEY_HERE") // Replace with actual user pubkey
+        userPublicKey: bs58.decode("USER_PUBLIC_KEY") // Replace with actual user pubkey
       },
       update: {
         num_quotes: 3 // Get 3 quotes total
@@ -40,6 +40,12 @@ async function basicExample() {
     console.log("Response:", response);
 
     console.log("Starting quote stream...");
+
+    const venues = await client.getVenues();
+    console.log("Venues:", venues);
+
+    const providers = await client.listProviders();
+    console.log("Providers:", providers);
     
     // Read quotes from the stream using async iteration
     let quoteCount = 0;

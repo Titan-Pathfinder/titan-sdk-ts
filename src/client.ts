@@ -690,9 +690,9 @@ export class V1Client {
 	}
 
 	private handleError(error: Error) {
-		this.socket.close(1002); // protocol error
 		const new_error = new ConnectionError(error);
 		this.rejectAllWithError(new_error);
+		this.socket.close(1002); // protocol error
 	}
 
 	private rejectWithError(requestId: number, error: unknown) {

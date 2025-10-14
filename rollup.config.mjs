@@ -46,10 +46,6 @@ const browserBundle = (config) => ({
 	input: "./src/index.ts",
 	// Exclude WASM modules that don't work well in browser bundles
 	external: (id) => {
-		// Exclude WASM files and problematic modules
-		if (id.includes('.wasm') || id.includes('brotli-wasm')) {
-			return true;
-		}
 		return false;
 	},
 });
@@ -94,9 +90,7 @@ export default [
 				preferBuiltins: false 
 			}), 
 			json(), 
-			nodePolyfills({
-				include: ['buffer', 'process', 'util']
-			})
+			nodePolyfills()
 		],
 		output: {
 			file: `${libOutputPath}.browser.mjs`,
@@ -117,9 +111,7 @@ export default [
 				preferBuiltins: false 
 			}), 
 			json(), 
-			nodePolyfills({
-				include: ['buffer', 'process', 'util']
-			})
+			nodePolyfills()
 		],
 		output: {
 			file: `${libOutputPath}.browser.umd.js`,
@@ -141,9 +133,7 @@ export default [
 				preferBuiltins: false 
 			}), 
 			json(), 
-			nodePolyfills({
-				include: ['buffer', 'process', 'util']
-			})
+			nodePolyfills()
 		],
 		output: {
 			file: `${libOutputPath}.browser.iife.js`,

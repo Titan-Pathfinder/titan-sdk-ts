@@ -94,6 +94,8 @@ type RequestData = {
     GetVenues: GetVenuesRequest;
 } | {
     ListProviders: ListProvidersRequest;
+} | {
+    GetSwapPrice: SwapPriceRequest;
 };
 type GetInfoRequest = {
     [k: string]: never;
@@ -138,6 +140,26 @@ interface GetVenuesRequest {
 interface ListProvidersRequest {
     includeIcons?: boolean;
 }
+interface SwapPriceRequest {
+    /** Address of the input mint of the swap. */
+    inputMint: Pubkey;
+    /** Address of the desired output token for the swap. */
+    outputMint: Pubkey;
+    /** Raw number of tokens to swap, not scaled by decimals. */
+    amount: Uint64;
+    /** If set, constrain quotes to the given set of DEXes.
+     *
+     * Note: setting both `dexes` and `exclude_dexes` may result in excluding all dexes, resulting
+     * in no routes.
+     */
+    dexes?: string[];
+    /** If set, exclude the following DEXes when determining routes.
+     *
+     * Note: setting both `dexes` and `exclude_dexes` may result in excluding all dexes, resulting
+     * in no routes.
+     */
+    excludeDexes?: string[];
+}
 /****** Server Messages ******/
 type ServerMessage = {
     Response: ResponseSuccess;
@@ -158,6 +180,8 @@ type ResponseData = {
     GetVenues: VenueInfo;
 } | {
     ListProviders: ProviderInfo[];
+} | {
+    GetSwapPrice: SwapPrice;
 };
 declare enum StreamDataType {
     SwapQuotes = "SwapQuotes"
@@ -292,6 +316,18 @@ interface PlatformFee {
     amount: number;
     fee_bps: number;
 }
+interface SwapPrice {
+    /** Identifier for this particular set of prices. */
+    id: string;
+    /** Address of the input mint for this price. */
+    inputMint: Pubkey;
+    /** Address of the output mint for this price. */
+    outputMint: Pubkey;
+    /** Amount that was used for the price. */
+    amountIn: Uint64;
+    /** The amount out of the best simulated quote for pricing. */
+    amountOut: Uint64;
+}
 
 type v1_ClientRequest = ClientRequest;
 type v1_ConnectionSettings = ConnectionSettings;
@@ -321,6 +357,8 @@ declare const v1_StreamDataType: typeof StreamDataType;
 type v1_StreamEnd = StreamEnd;
 type v1_StreamStart = StreamStart;
 type v1_SwapParams = SwapParams;
+type v1_SwapPrice = SwapPrice;
+type v1_SwapPriceRequest = SwapPriceRequest;
 type v1_SwapQuoteRequest = SwapQuoteRequest;
 type v1_SwapQuotes = SwapQuotes;
 type v1_SwapRoute = SwapRoute;
@@ -334,7 +372,7 @@ declare const v1_WEBSOCKET_SUBPROTOCOLS: typeof WEBSOCKET_SUBPROTOCOLS;
 declare const v1_WEBSOCKET_SUBPROTO_BASE: typeof WEBSOCKET_SUBPROTO_BASE;
 declare namespace v1 {
   export { v1_StreamDataType as StreamDataType, v1_WEBSOCKET_SUBPROTOCOLS as WEBSOCKET_SUBPROTOCOLS, v1_WEBSOCKET_SUBPROTO_BASE as WEBSOCKET_SUBPROTO_BASE };
-  export type { v1_ClientRequest as ClientRequest, v1_ConnectionSettings as ConnectionSettings, v1_GetInfoRequest as GetInfoRequest, v1_GetVenuesRequest as GetVenuesRequest, v1_ListProvidersRequest as ListProvidersRequest, v1_PlatformFee as PlatformFee, v1_ProviderInfo as ProviderInfo, v1_ProviderKind as ProviderKind, v1_QuoteSwapStreamResponse as QuoteSwapStreamResponse, v1_QuoteUpdateParams as QuoteUpdateParams, v1_QuoteUpdateSettings as QuoteUpdateSettings, v1_RequestData as RequestData, v1_ResponseData as ResponseData, v1_ResponseError as ResponseError, v1_ResponseSuccess as ResponseSuccess, v1_RoutePlanStep as RoutePlanStep, v1_ServerInfo as ServerInfo, v1_ServerMessage as ServerMessage, v1_ServerSettings as ServerSettings, v1_StopStreamRequest as StopStreamRequest, v1_StopStreamResponse as StopStreamResponse, v1_StreamData as StreamData, v1_StreamDataPayload as StreamDataPayload, v1_StreamEnd as StreamEnd, v1_StreamStart as StreamStart, v1_SwapParams as SwapParams, v1_SwapQuoteRequest as SwapQuoteRequest, v1_SwapQuotes as SwapQuotes, v1_SwapRoute as SwapRoute, v1_SwapSettings as SwapSettings, v1_TransactionParams as TransactionParams, v1_TransactionSettings as TransactionSettings, v1_Uint64 as Uint64, v1_VenueInfo as VenueInfo, v1_VersionInfo as VersionInfo };
+  export type { v1_ClientRequest as ClientRequest, v1_ConnectionSettings as ConnectionSettings, v1_GetInfoRequest as GetInfoRequest, v1_GetVenuesRequest as GetVenuesRequest, v1_ListProvidersRequest as ListProvidersRequest, v1_PlatformFee as PlatformFee, v1_ProviderInfo as ProviderInfo, v1_ProviderKind as ProviderKind, v1_QuoteSwapStreamResponse as QuoteSwapStreamResponse, v1_QuoteUpdateParams as QuoteUpdateParams, v1_QuoteUpdateSettings as QuoteUpdateSettings, v1_RequestData as RequestData, v1_ResponseData as ResponseData, v1_ResponseError as ResponseError, v1_ResponseSuccess as ResponseSuccess, v1_RoutePlanStep as RoutePlanStep, v1_ServerInfo as ServerInfo, v1_ServerMessage as ServerMessage, v1_ServerSettings as ServerSettings, v1_StopStreamRequest as StopStreamRequest, v1_StopStreamResponse as StopStreamResponse, v1_StreamData as StreamData, v1_StreamDataPayload as StreamDataPayload, v1_StreamEnd as StreamEnd, v1_StreamStart as StreamStart, v1_SwapParams as SwapParams, v1_SwapPrice as SwapPrice, v1_SwapPriceRequest as SwapPriceRequest, v1_SwapQuoteRequest as SwapQuoteRequest, v1_SwapQuotes as SwapQuotes, v1_SwapRoute as SwapRoute, v1_SwapSettings as SwapSettings, v1_TransactionParams as TransactionParams, v1_TransactionSettings as TransactionSettings, v1_Uint64 as Uint64, v1_VenueInfo as VenueInfo, v1_VersionInfo as VersionInfo };
 }
 
 declare const index_common: typeof common;
@@ -555,6 +593,13 @@ declare class V1Client {
      * @returns A promise that is resolved with the list of providers.
      */
     listProviders(params?: ListProvidersRequest): Promise<ProviderInfo[]>;
+    /**
+     * Requests pricing information for a swap between two tokens at a given input amount.
+     *
+     * @param params - Parameters for the swap to be quoted.
+     * @returns A promise that is resolved with the quote information.
+     */
+    getSwapPrice(params: SwapPriceRequest): Promise<SwapPrice>;
     private sendMessage;
     private handleMessage;
     private handleServerMessage;

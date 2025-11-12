@@ -6,6 +6,7 @@ import typescript from "@rollup/plugin-typescript";
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
+import { wasm } from '@rollup/plugin-wasm';
 
 const target_browsers = ['chrome137', 'firefox136', 'safari18', 'edge127'];
 const target_server = ['node18'];
@@ -83,14 +84,15 @@ export default [
 	// Output for browser (ESM) - bundled for direct browser use
 	browserBundle({
 		plugins: [
-			typescript(), 
-			commonjs(), 
-			nodeResolve({ 
+			typescript(),
+			commonjs(),
+			nodeResolve({
 				browser: true,
-				preferBuiltins: false 
-			}), 
-			json(), 
-			nodePolyfills()
+				preferBuiltins: false
+			}),
+			json(),
+			nodePolyfills(),
+			wasm({ maxFileSize: 2_000_000, targetEnv: "browser" }),
 		],
 		output: {
 			file: `${libOutputPath}.browser.mjs`,
@@ -104,14 +106,15 @@ export default [
 	// Output for browser (UMD) - better compatibility with older bundlers
 	browserBundle({
 		plugins: [
-			typescript(), 
-			commonjs(), 
-			nodeResolve({ 
+			typescript(),
+			commonjs(),
+			nodeResolve({
 				browser: true,
-				preferBuiltins: false 
-			}), 
-			json(), 
-			nodePolyfills()
+				preferBuiltins: false
+			}),
+			json(),
+			nodePolyfills(),
+			wasm({ maxFileSize: 2_000_000, targetEnv: "browser" }),
 		],
 		output: {
 			file: `${libOutputPath}.browser.umd.js`,
@@ -126,14 +129,15 @@ export default [
 	// Output for browser (IIFE) - immediate execution, global variable
 	browserBundle({
 		plugins: [
-			typescript(), 
-			commonjs(), 
-			nodeResolve({ 
+			typescript(),
+			commonjs(),
+			nodeResolve({
 				browser: true,
-				preferBuiltins: false 
-			}), 
-			json(), 
-			nodePolyfills()
+				preferBuiltins: false
+			}),
+			json(),
+			nodePolyfills(),
+			wasm({ maxFileSize: 2_000_000, targetEnv: "browser" }),
 		],
 		output: {
 			file: `${libOutputPath}.browser.iife.js`,

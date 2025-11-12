@@ -127,6 +127,7 @@ enum ResponseHandlerKind {
 	NewSwapQuoteStream = "NewSwapQuoteStream",
 	GetVenues = "GetVenues",
 	ListProviders = "ListProviders",
+	GetSwapPrice = "GetSwapPrice",
 }
 
 interface HandlerAndPromise<T> {
@@ -172,6 +173,10 @@ abstract class ResponseHandler {
 
 	resolveListProviders(result: v1.ProviderInfo[]) {
 		this.reject(new ProtocolError(result, `incorrect type (ProviderInfo[]) for handler of kind ${this.kind}`));
+	}
+
+	resolveGetSwapPrice(result: v1.SwapPrice) {
+		this.reject(new ProtocolError(result, `incorrect type (SwapPrice) for handler of kind ${this.kind}`));
 	}
 }
 
@@ -266,6 +271,25 @@ class ProviderInfoResponseHandler extends ResponseHandler {
 	static create(): HandlerAndPromise<v1.ProviderInfo[]> {
 		const { promise, resolve, reject } = Promise.withResolvers<v1.ProviderInfo[]>();
 		const handler = new ProviderInfoResponseHandler(resolve, reject);
+		return { promise, handler };
+	}
+}
+
+class GetSwapPriceResponseHandler extends ResponseHandler {
+	resolver: Resolver<v1.SwapPrice>;
+
+	constructor(resolver: Resolver<v1.SwapPrice>, rejector: Rejector) {
+		super(ResponseHandlerKind.GetSwapPrice, rejector);
+		this.resolver = resolver;
+	}
+
+	override resolveGetSwapPrice(result: v1.SwapPrice): void {
+		this.resolver(result);
+	}
+
+	static create(): HandlerAndPromise<v1.SwapPrice> {
+		const { promise, resolve, reject } = Promise.withResolvers<v1.SwapPrice>();
+		const handler = new GetSwapPriceResponseHandler(resolve, reject);
 		return { promise, handler };
 	}
 }
@@ -507,6 +531,28 @@ export class V1Client {
 		return promise;
 	}
 
+	/**
+	 * Requests pricing information for a swap between two tokens at a given input amount.
+	 *
+	 * @param params - Parameters for the swap to be quoted.
+	 * @returns A promise that is resolved with the quote information.
+	 */
+	public getSwapPrice(params: v1.SwapPriceRequest): Promise<v1.SwapPrice> {
+		const requestId = this.nextRequestId();
+		const { promise, handler } = GetSwapPriceResponseHandler.create();
+		this.results.set(requestId, handler);
+
+		const message: v1.ClientRequest = {
+			id: requestId,
+			data: {
+				GetSwapPrice: params,
+			},
+		};
+		this.sendMessage(message);
+
+		return promise;
+	}
+
 	// Sends the message on the socket, rejecting the promise if there is any encoding error.
 	private sendMessage(message: v1.ClientRequest) {
 		this.codec
@@ -599,9 +645,10 @@ export class V1Client {
 			handler.resolveGetVenues(message.data.GetVenues);
 		} else if ("ListProviders" in message.data) {
 			handler.resolveListProviders(message.data.ListProviders);
-		}
-		else if ("StreamStopped" in message.data) {
+		} else if ("StreamStopped" in message.data) {
 			handler.resolveStopStream(message.data.StreamStopped);
+		} else if ("GetSwapPrice" in message.data) {
+			handler.resolveGetSwapPrice(message.data.GetSwapPrice);
 		} else {
 			const response_type = Object.keys(message.data).at(0) || "<none>";
 			handler.reject(new ProtocolError(message, `unknown resonse type ${response_type} for handler of type ${handler.kind}`));

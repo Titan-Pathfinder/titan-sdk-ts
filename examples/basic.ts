@@ -34,6 +34,20 @@ async function basicExample() {
 			maxSlippage: info.settings.swap.slippageBps.max
 		});
 
+		const venues = await client.getVenues();
+		console.log("Venues:", venues);
+
+		const providers = await client.listProviders();
+		console.log("Providers:", providers);
+
+		// Pull just pricing information as an example.
+		const price = await client.getSwapPrice({
+			inputMint: INPUT_MINT,
+			outputMint: OUTPUT_MINT,
+			amount: AMOUNT,
+		});
+		console.log("Price:", price);
+
 		// Create a simple swap quote request
 		const swapParams = {
 			swap: {
@@ -52,16 +66,9 @@ async function basicExample() {
 		};
 
 		// Start the quote stream
+		console.log("Starting quote stream...");
 		const { stream, response, streamId } = await client.newSwapQuoteStream(swapParams);
 		console.log("Response:", response);
-
-		console.log("Starting quote stream...");
-
-		const venues = await client.getVenues();
-		console.log("Venues:", venues);
-
-		const providers = await client.listProviders();
-		console.log("Providers:", providers);
 
 		// Read quotes from the stream using async iteration
 		let quoteCount = 0;

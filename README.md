@@ -464,7 +464,7 @@ See the [examples](./examples) directory for complete working examples:
 ## Links
 
 - **GitHub Repository**: https://github.com/Titan-Pathfinder/titan-sdk-ts
-- **API Documentation**: https://titan-exchange.gitbook.io/titan/titan-developer-docs/apis/swap-api
+- **API Documentation**: https://titan-exchange.gitbook.io/titan/titan-developer-docs
 
 ---
 

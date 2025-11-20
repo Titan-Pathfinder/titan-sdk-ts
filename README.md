@@ -283,7 +283,7 @@ const withIcons = await client.listProviders({ includeIcons: true });
 **Notes:**
 - Use venue labels in `dexes`/`excludeDexes` filters
 - Use provider IDs in `providers` filter
-- Provider `kind` is either `"DexAggregator"` or `"RFQ"`
+- Provider `kind` indicates the provider type
 
 ---
 

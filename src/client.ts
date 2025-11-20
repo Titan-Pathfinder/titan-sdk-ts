@@ -535,7 +535,7 @@ export class V1Client {
 							new DecodeError(data, `got unknown error: ${error}`),
 						);
 					}
-					this.socket.close(1002, "failed to decode message");
+					this.socket.close(3002, "failed to decode message");
 				});
 		}
 	}
@@ -692,7 +692,7 @@ export class V1Client {
 	private handleError(error: Error) {
 		const new_error = new ConnectionError(error);
 		this.rejectAllWithError(new_error);
-		this.socket.close(1002); // protocol error
+		this.socket.close(3002); // protocol error (client-safe version of 1002)
 	}
 
 	private rejectWithError(requestId: number, error: unknown) {

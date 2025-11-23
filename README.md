@@ -138,6 +138,8 @@ for await (const quotes of stream) {
 - `SwapMode.ExactIn` - Amount is input tokens, slippage applied to output
 - `SwapMode.ExactOut` - Amount is output tokens, slippage applied to input
 
+> **Note:** Swap mode selection is not currently supported.
+
 **Optional Filters:**
 - `dexes` / `excludeDexes` - Control which DEX venues are used
 - `providers` - Limit to specific provider IDs
@@ -289,12 +291,167 @@ const withIcons = await client.listProviders({ includeIcons: true });
 
 ## Browser Usage
 
-The SDK works in modern browsers with the same API as Node.js. Simply import from the `/browser` entrypoint.
+The SDK works in modern browsers with the same API as Node.js. Import from the `/browser` entrypoint:
+
+```typescript
+import { V1Client } from "@titanexchange/sdk-ts/browser";
+```
+
+### Protecting Your API Key
+
+When using the SDK in a browser (client-side), your API key must remain protected. Any credentials in frontend code can be extracted through browser devtools or by inspecting network traffic.
+
+**Solution: Implement a middleware proxy**
+
+Set up a backend middleware service that:
+- Accepts WebSocket connections from your frontend
+- Authenticates requests using your own session/auth mechanism
+- Proxies connections to the Titan API with the API key injected server-side
+
+### Middleware Proxy Example
+
+Below is an example middleware solution that securely handles Titan API authentication on the server side. You can use this as a starting point or implement your own middleware solution based on your application's requirements and tech stack.
+
+> **Note:** The main objective is to protect your Titan API key from being exposed in client-side code. Feel free to implement your own middleware based on your tech stack and requirements.
+
+See [examples/middleware.ts](./examples/middleware.ts) for the complete working example.
+
+**Server code:**
+
+```typescript
+import { createServer } from "http";
+import { env } from "node:process";
+import pkg from "websocket";
+
+// Destructure server and client from websocket package
+// (CommonJS modules require this pattern for ES module imports)
+const { server: WebSocketServer, client: WebSocketClient } = pkg;
+
+// Load configuration from environment variables
+const PORT = parseInt(env["PORT"] || "3000");
+const TITAN_WS_URL = env["TITAN_WS_URL"];
+const TITAN_API_KEY = env["TITAN_API_KEY"];
+
+// Titan API sub-protocols (for compression negotiation)
+const TITAN_SUBPROTOCOLS = [
+  "v1.api.titan.ag+zstd",
+  "v1.api.titan.ag+brotli",
+  "v1.api.titan.ag+gzip",
+  "v1.api.titan.ag",
+];
+
+// Create HTTP server and WebSocket server
+const httpServer = createServer();
+const wsServer = new WebSocketServer({ httpServer });
+
+/**
+ * Validate user token before allowing proxy access.
+ * Replace with your actual authentication logic.
+ */
+function validateUserToken(token: string | null): boolean {
+  if (!token) return false;
+  // TODO: Implement your validation (JWT verify, session lookup, etc.)
+  return token.length > 0;
+}
+
+// Handle WebSocket requests
+wsServer.on("request", (request) => {
+  // Extract user token and validate
+  const url = new URL(request.resource, `http://localhost:${PORT}`);
+  const token = url.searchParams.get("token");
+
+  if (!validateUserToken(token)) {
+    request.reject(401, "Unauthorized");
+    return;
+  }
+
+  // Select sub-protocol for compression
+  const requestedProtocols = request.requestedProtocols;
+  let selectedProtocol: string | null = null;
+  for (const proto of requestedProtocols) {
+    if (TITAN_SUBPROTOCOLS.includes(proto)) {
+      selectedProtocol = proto;
+      break;
+    }
+  }
+
+  // Accept client connection
+  const clientConnection = request.accept(selectedProtocol, request.origin);
+
+  // Connect to Titan API with API key (server-side only)
+  const titanClient = new WebSocketClient();
+  let titanConnection: ReturnType<typeof request.accept> | null = null;
+
+  titanClient.on("connect", (connection) => {
+    titanConnection = connection;
+
+    // Forward Titan responses to browser client
+    connection.on("message", (message) => {
+      if (clientConnection.connected && message.binaryData) {
+        clientConnection.sendBytes(message.binaryData);
+      }
+    });
+
+    connection.on("close", (code, desc) => {
+      if (clientConnection.connected) clientConnection.close(code, desc);
+    });
+  });
+
+  // Connect to Titan with API key and sub-protocol
+  titanClient.connect(
+    `${TITAN_WS_URL}?auth=${TITAN_API_KEY}`,
+    selectedProtocol ? [selectedProtocol] : undefined
+  );
+
+  // Forward browser client messages to Titan API
+  clientConnection.on("message", (message) => {
+    if (titanConnection && message.binaryData) {
+      titanConnection.sendBytes(message.binaryData);
+    }
+  });
+
+  // Clean up on disconnect
+  clientConnection.on("close", () => {
+    if (titanConnection?.connected) titanConnection.close();
+  });
+});
+
+// Start the proxy server
+httpServer.listen(PORT, () => {
+  console.log(`Proxy running at ws://localhost:${PORT}/titan-proxy`);
+});
+```
+
+**Configuration (environment variables):**
+
+| Variable | Description |
+|----------|-------------|
+| `TITAN_WS_URL` | Titan API WebSocket URL (e.g., `wss://api.titan.io/v1/ws`) |
+| `TITAN_API_KEY` | Your Titan API key |
+| `PORT` | Server port (default: 3000) |
+
+**Key concepts:**
+
+1. Accept WebSocket connections from browser clients
+2. Validate user authentication (implement your own logic)
+3. Handle Titan API sub-protocols for compression negotiation
+4. Connect to Titan API with your API key (server-side only)
+5. Proxy messages bidirectionally between client and Titan API
+
+**Production considerations:**
+- Use TLS (wss://) in production
+- Implement rate limiting
+- Add request logging and monitoring
+
+### Browser Client Example
+
+Your browser code connects to your backend proxy, not directly to the Titan API:
 
 ```typescript
 import { V1Client } from "@titanexchange/sdk-ts/browser";
 
-const client = await V1Client.connect("wss://YOUR_API_ENDPOINT/ws?auth=YOUR_TOKEN");
+// Connect to your backend proxy with user token
+const client = await V1Client.connect("ws://localhost:3000/titan-proxy?token=USER_TOKEN");
 const { stream } = await client.newSwapQuoteStream(params);
 
 for await (const quotes of stream) {
@@ -335,7 +492,7 @@ interface SwapParams {
   inputMint: Uint8Array;          // 32-byte Pubkey
   outputMint: Uint8Array;         // 32-byte Pubkey
   amount: number | bigint;        // Uint64 - raw amount
-  swapMode?: SwapMode;            // "ExactIn" | "ExactOut"
+  swapMode?: SwapMode;           
   slippageBps?: number;
   dexes?: string[];
   excludeDexes?: string[];
@@ -458,6 +615,7 @@ try {
 
 See the [examples](./examples) directory for complete working examples:
 - [basic.ts](./examples/basic.ts) - Complete example with swap quote streaming
+- [middleware.ts](./examples/middleware.ts) - Middleware proxy for browser usage
 
 ---
 

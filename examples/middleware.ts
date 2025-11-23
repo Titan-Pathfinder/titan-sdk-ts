@@ -11,7 +11,7 @@ const { server: WebSocketServer, client: WebSocketClient } = pkg;
 // keeping the API key secure on the server side.
 //
 // Set the following environment variables:
-// - TITAN_WS_URL  : Titan API WebSocket URL (e.g., wss://api.titan.io/v1/ws)
+// - TITAN_WS_URL  : Titan API WebSocket URL (as provided)
 // - TITAN_API_KEY : Your Titan API key
 // - PORT          : Server port (default: 3000)
 

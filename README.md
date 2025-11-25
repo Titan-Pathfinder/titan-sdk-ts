@@ -28,6 +28,7 @@ The Titan SDK provides a WebSocket-based client for requesting and receiving liv
   - [Understanding Instruction Format](#understanding-instruction-format)
   - [Getting Server Info](#getting-server-info)
   - [Listing Venues and Providers](#listing-venues-and-providers)
+  - [Getting Swap Prices](#getting-swap-prices)
 - [Browser Usage](#browser-usage)
 - [Types](#types)
 - [Error Handling](#error-handling)
@@ -287,6 +288,45 @@ const withIcons = await client.listProviders({ includeIcons: true });
 - Use provider IDs in `providers` filter
 - Provider `kind` indicates the provider type
 
+### Getting Swap Prices
+
+If you need a quick price check without opening a continuous quote stream, use `getSwapPrice()`. This method returns a single price quote based on the best simulated route, making it ideal for displaying estimated prices or performing one-time price checks.
+
+```typescript
+import { V1Client } from "@titanexchange/sdk-ts";
+import bs58 from "bs58";
+
+const USDC = bs58.decode("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // Example: USDC token address
+const SOL = bs58.decode("So11111111111111111111111111111111111111112");  // Example: Wrapped SOL token address
+
+const price = await client.getSwapPrice({
+  inputMint: USDC,
+  outputMint: SOL,
+  amount: 1_000_000,           // Raw token amount (not scaled by decimals)
+  dexes: ["Raydium", "Whirlpool"],  // Optional - filter to specific DEXes
+  excludeDexes: ["Phoenix"],   // Optional - exclude specific DEXes
+});
+
+console.log("Price ID:", price.id);
+console.log("Input amount:", price.amountIn);
+console.log("Output amount:", price.amountOut);
+console.log("Input mint:", price.inputMint);
+console.log("Output mint:", price.outputMint);
+```
+
+**When to use `getSwapPrice()` vs `newSwapQuoteStream()`:**
+- Use `getSwapPrice()` for one-time price checks, UI previews, or displaying estimated rates
+- Use `newSwapQuoteStream()` when you need continuous updates, multiple quotes from different providers, or ready-to-execute transactions
+
+**Optional Filters:**
+- `dexes` - Limit price calculation to specific DEX venues
+- `excludeDexes` - Exclude specific DEX venues from price calculation
+
+**Notes:**
+- This method does not generate executable transactions
+- Returns a single price based on the best simulated route
+- Response includes a unique `id` for tracking the price quote
+
 ---
 
 ## Browser Usage
@@ -511,6 +551,14 @@ interface TransactionParams {
   closeInputTokenAccount?: boolean;
   createOutputTokenAccount?: boolean;
 }
+
+interface SwapPriceRequest {
+  inputMint: Uint8Array;        // 32-byte Pubkey
+  outputMint: Uint8Array;       // 32-byte Pubkey
+  amount: number | bigint;      // Uint64 - raw token amount
+  dexes?: string[];             // Optional - filter to specific DEXes
+  excludeDexes?: string[];      // Optional - exclude specific DEXes
+}
 ```
 
 ### Response Types
@@ -541,6 +589,14 @@ interface SwapRoute {
   computeUnitsSafe?: number;
   transaction?: Uint8Array;
   referenceId?: string;
+}
+
+interface SwapPrice {
+  id: string;                   // Identifier for this price quote
+  inputMint: Uint8Array;        // 32-byte Pubkey
+  outputMint: Uint8Array;       // 32-byte Pubkey
+  amountIn: number | bigint;    // Uint64 - input amount used for pricing
+  amountOut: number | bigint;   // Uint64 - output amount from best simulated route
 }
 ```
 
@@ -614,7 +670,7 @@ try {
 ## Examples
 
 See the [examples](./examples) directory for complete working examples:
-- [basic.ts](./examples/basic.ts) - Complete example with swap quote streaming
+- [basic.ts](./examples/basic.ts) - Complete example with swap quote streaming and price checking
 - [middleware.ts](./examples/middleware.ts) - Middleware proxy for browser usage
 
 ---

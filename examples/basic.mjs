@@ -40,6 +40,14 @@ async function basicExample() {
 		const providers = await client.listProviders();
 		console.log("Providers:", providers);
 
+		// Pull just pricing information as an example.
+		const price = await client.getSwapPrice({
+			inputMint: INPUT_MINT,
+			outputMint: OUTPUT_MINT,
+			amount: AMOUNT,
+		});
+		console.log("Price:", price);
+
 		// Create a simple swap quote request
 		const swapParams = {
 			swap: {

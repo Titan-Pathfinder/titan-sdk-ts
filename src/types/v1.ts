@@ -31,7 +31,8 @@ export type RequestData =
 	| { NewSwapQuoteStream: SwapQuoteRequest }
 	| { StopStream: StopStreamRequest }
 	| { GetVenues: GetVenuesRequest }
-	| { ListProviders: ListProvidersRequest };
+	| { ListProviders: ListProvidersRequest }
+	| { GetSwapPrice: SwapPriceRequest };
 
 export type GetInfoRequest = { [k: string]: never };
 
@@ -124,20 +125,42 @@ export interface ListProvidersRequest {
 	includeIcons?: boolean;
 }
 
+export interface SwapPriceRequest {
+	/** Address of the input mint of the swap. */
+	inputMint: Pubkey;
+	/** Address of the desired output token for the swap. */
+	outputMint: Pubkey;
+	/** Raw number of tokens to swap, not scaled by decimals. */
+	amount: Uint64;
+	/** If set, constrain quotes to the given set of DEXes.
+	 *
+	 * Note: setting both `dexes` and `exclude_dexes` may result in excluding all dexes, resulting
+	 * in no routes.
+	 */
+	dexes?: string[];
+	/** If set, exclude the following DEXes when determining routes.
+	 *
+	 * Note: setting both `dexes` and `exclude_dexes` may result in excluding all dexes, resulting
+	 * in no routes.
+	 */
+	excludeDexes?: string[];
+}
+
 /****** Server Messages ******/
 
-export type ServerMessage = 
-| { Response: ResponseSuccess }
-| { Error: ResponseError }
-| { StreamData: StreamData }
-| { StreamEnd: StreamEnd };
+export type ServerMessage =
+	| { Response: ResponseSuccess }
+	| { Error: ResponseError }
+	| { StreamData: StreamData }
+	| { StreamEnd: StreamEnd };
 
-export type ResponseData = 
-| { GetInfo: ServerInfo }
-| { NewSwapQuoteStream: QuoteSwapStreamResponse }
-| { StreamStopped: StopStreamResponse }
-| { GetVenues: VenueInfo }
-| { ListProviders: ProviderInfo[] };
+export type ResponseData =
+	| { GetInfo: ServerInfo }
+	| { NewSwapQuoteStream: QuoteSwapStreamResponse }
+	| { StreamStopped: StopStreamResponse }
+	| { GetVenues: VenueInfo }
+	| { ListProviders: ProviderInfo[] }
+	| { GetSwapPrice: SwapPrice };
 
 export enum StreamDataType {
 	SwapQuotes = "SwapQuotes",
@@ -272,7 +295,7 @@ export interface ProviderInfo {
 	kind: ProviderKind;
 	iconUri48?: string;
 }
-  
+
 export type ProviderKind = "DexAggregator" | "RFQ";
 
 export interface SwapQuotes {
@@ -360,4 +383,17 @@ export interface PlatformFee {
 	amount: number;
 	/// Fee percentage, in basis points.
 	fee_bps: number;
+}
+
+export interface SwapPrice {
+	/** Identifier for this particular set of prices. */
+	id: string,
+	/** Address of the input mint for this price. */
+	inputMint: Pubkey,
+	/** Address of the output mint for this price. */
+	outputMint: Pubkey,
+	/** Amount that was used for the price. */
+	amountIn: Uint64,
+	/** The amount out of the best simulated quote for pricing. */
+	amountOut: Uint64,
 }

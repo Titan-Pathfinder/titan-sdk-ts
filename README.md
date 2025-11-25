@@ -107,7 +107,7 @@ const { stream, streamId, response } = await client.newSwapQuoteStream({
     amount: 1_000_000,            // Uint64 - raw token amount (not scaled)
     swapMode: types.common.SwapMode.ExactIn,
     slippageBps: 50,              // Optional - defaults to server setting
-    dexes: ["Raydium", "Orca"],   // Optional - filter to specific DEXes
+    dexes: ["Raydium", "Whirlpool"],   // Optional - filter to specific DEXes
     excludeDexes: ["Phoenix"],    // Optional - exclude DEXes
     // providers: ["provider_id"], // Optional - filter by provider ID
   },
@@ -267,7 +267,7 @@ You can query which DEX venues and liquidity providers are available on the plat
 ```typescript
 // Get list of DEX venues
 const venues = await client.getVenues();
-console.log("Venues:", venues.labels); // ["Raydium", "Orca", "Phoenix", ...]
+console.log("Venues:", venues.labels); // ["Raydium""Whirlpool""Phoenix", ...]
 
 // Get venues with Solana program IDs
 const venuesWithIds = await client.getVenues({ includeProgramIds: true });

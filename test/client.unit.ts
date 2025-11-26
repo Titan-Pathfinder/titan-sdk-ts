@@ -165,7 +165,7 @@ describe("V1Client (unit)", () => {
 		failNextDecode(socket, codec, new Error("decode boom"));
 
 		await expect(p).rejects.toMatchObject({ name: "ConnectionError" });
-		expect(socket.closed?.code).toBe(1002);
+		expect(socket.closed?.code).toBe(3002);
 		expect(client.closed).toBe(true);
 	});
 

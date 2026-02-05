@@ -4,6 +4,14 @@ import { WebSocket, WebSocketInstance, IMessageEvent, ICloseEvent } from "./webs
 
 import * as v1 from "./types/v1";
 
+/**
+ * Converts a Uint64 value (number | bigint) to BigInt for proper MessagePack encoding.
+ * This ensures large numbers (>= 2^32) are encoded as uint64 instead of float64.
+ */
+function toBigInt(value: v1.Uint64): bigint {
+	return typeof value === 'bigint' ? value : BigInt(value);
+}
+
 // Polyfill Promise.withResolvers if not available.
 // Implementation based on the example from MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
 if (typeof Promise.withResolvers === 'undefined') {
@@ -473,10 +481,16 @@ export class V1Client {
 		const { promise, handler } = NewSwapQuoteStreamHandler.create();
 		this.results.set(requestId, handler);
 
+		// Normalize amount to BigInt for proper uint64 encoding
+		const normalizedParams: v1.SwapQuoteRequest = {
+			...params,
+			swap: { ...params.swap, amount: toBigInt(params.swap.amount) },
+		};
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
-				NewSwapQuoteStream: params,
+				NewSwapQuoteStream: normalizedParams,
 			},
 		};
 		this.sendMessage(message);
@@ -542,10 +556,16 @@ export class V1Client {
 		const { promise, handler } = GetSwapPriceResponseHandler.create();
 		this.results.set(requestId, handler);
 
+		// Normalize amount to BigInt for proper uint64 encoding
+		const normalizedParams: v1.SwapPriceRequest = {
+			...params,
+			amount: toBigInt(params.amount),
+		};
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
-				GetSwapPrice: params,
+				GetSwapPrice: normalizedParams,
 			},
 		};
 		this.sendMessage(message);

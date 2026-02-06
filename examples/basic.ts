@@ -16,7 +16,7 @@ const WS_URL = `${env["WS_URL"]}?auth=${env["AUTH_TOKEN"]}`;
 const USER_PUBLIC_KEY = bs58.decode(env["USER_PUBLIC_KEY"] || "Fake111111111111111111111111111111111111111");
 const INPUT_MINT = bs58.decode(env["INPUT_MINT"] || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const OUTPUT_MINT = bs58.decode(env["OUTPUT_MINT"] || "So11111111111111111111111111111111111111112");
-const AMOUNT = parseInt(env["AMOUNT"] || "1000000");
+const AMOUNT = BigInt(env["AMOUNT"] || "1000000");
 const SLIPPAGE_BPS = parseInt(env["SLIPPAGE_BPS"] || "50");
 const NUM_QUOTES = parseInt(env["NUM_QUOTES"] || "3");
 
@@ -46,6 +46,8 @@ async function basicExample() {
 			outputMint: OUTPUT_MINT,
 			amount: AMOUNT,
 		});
+		price.inputMint = bs58.encode(price.inputMint);
+		price.outputMint = bs58.encode(price.outputMint);
 		console.log("Price:", price);
 
 		// Create a simple swap quote request
@@ -77,12 +79,19 @@ async function basicExample() {
 			quoteCount++;
 
 			const providers = Object.keys(quote.quotes);
-			const firstProvider = providers[0];
-			const firstQuote = firstProvider ? quote.quotes[firstProvider] : null;
+			let bestProvider: string | null = null;
+			let bestQuote: types.v1.SwapRoute | null = null;
+			for (const [providerId, providerQuote] of Object.entries(quote.quotes)) {
+				if (bestQuote === null || providerQuote.outAmount > bestQuote.outAmount) {
+					bestProvider = providerId;
+					bestQuote = providerQuote;
+				}
+			}
 			console.log(`Quote ${quoteCount}:`, {
 				id: quote.id,
 				providers: providers,
-				bestQuote: firstQuote ? `${(firstQuote.outAmount / 1e9).toFixed(6)} SOL` : 'N/A'
+				bestProvider: bestProvider || 'N/A',
+				bestQuote: bestQuote ? bestQuote.outAmount : 'N/A'
 			});
 
 			// Stop after 3 quotes

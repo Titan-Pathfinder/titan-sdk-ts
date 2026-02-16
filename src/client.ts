@@ -4,6 +4,32 @@ import { WebSocket, WebSocketInstance, IMessageEvent, ICloseEvent } from "./webs
 
 import * as v1 from "./types/v1";
 
+/** Maximum value for a uint64 field. */
+const UINT64_MAX = (1n << 64n) - 1n;
+
+/**
+ * Validates and converts a Uint64 value to BigInt for proper MessagePack encoding.
+ *
+ * Without this conversion, numbers >= 2^32 are encoded as float64 instead of uint64,
+ * which the server rejects. This function also ensures the value is a non-negative
+ * integer within the valid uint64 range [0, 2^64 - 1].
+ */
+function toBigInt(value: v1.Uint64): bigint {
+	if (typeof value === 'bigint') {
+		if (value < 0n || value > UINT64_MAX) {
+			throw new RangeError(`Amount out of uint64 range: ${value}. Must be between 0 and 2^64 - 1.`);
+		}
+		return value;
+	}
+	if (!Number.isInteger(value)) {
+		throw new TypeError(`Amount must be a whole number, got ${value}.`);
+	}
+	if (value < 0) {
+		throw new RangeError(`Amount must be non-negative, got ${value}.`);
+	}
+	return BigInt(value);
+}
+
 // Polyfill Promise.withResolvers if not available.
 // Implementation based on the example from MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
 if (typeof Promise.withResolvers === 'undefined') {
@@ -473,10 +499,16 @@ export class V1Client {
 		const { promise, handler } = NewSwapQuoteStreamHandler.create();
 		this.results.set(requestId, handler);
 
+		// Normalize amount to BigInt for proper uint64 encoding
+		const normalizedParams: v1.SwapQuoteRequest = {
+			...params,
+			swap: { ...params.swap, amount: toBigInt(params.swap.amount) },
+		};
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
-				NewSwapQuoteStream: params,
+				NewSwapQuoteStream: normalizedParams,
 			},
 		};
 		this.sendMessage(message);
@@ -542,10 +574,16 @@ export class V1Client {
 		const { promise, handler } = GetSwapPriceResponseHandler.create();
 		this.results.set(requestId, handler);
 
+		// Normalize amount to BigInt for proper uint64 encoding
+		const normalizedParams: v1.SwapPriceRequest = {
+			...params,
+			amount: toBigInt(params.amount),
+		};
+
 		const message: v1.ClientRequest = {
 			id: requestId,
 			data: {
-				GetSwapPrice: params,
+				GetSwapPrice: normalizedParams,
 			},
 		};
 		this.sendMessage(message);

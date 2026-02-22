@@ -179,6 +179,43 @@ describe("V1Client (unit)", () => {
 		expect(() => socket.emitBinary(new Uint8Array([0]).buffer)).not.toThrow();
 	});
 
+	test("newSwapQuoteStream with SwapVersion.V3 sends titanSwapVersion in request", async () => {
+		const socket = new FakeWebSocket();
+		const codec = new StubCodec();
+		const client = new V1Client(socket as any, codec as any);
+
+		const streamP = client.newSwapQuoteStream({
+			swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 1000 },
+			transaction: { userPublicKey: new Uint8Array(32) as any, titanSwapVersion: v1.SwapVersion.V3 },
+		});
+
+		const encoded = codec.encodedMessages[0];
+		expect(encoded).toMatchObject({
+			id: 0,
+			data: { NewSwapQuoteStream: expect.any(Object) },
+		});
+		expect(encoded.data.NewSwapQuoteStream.transaction.titanSwapVersion).toBe(v1.SwapVersion.V3);
+
+		// Complete the stream setup so the promise resolves
+		emitResponseNewSwapQuoteStream(socket, codec, 0, 100, 1000);
+
+		const { response, stream } = await streamP;
+		expect(response.intervalMs).toBe(1000);
+
+		const reader = stream.getReader();
+
+		// Emit a quote and verify it arrives
+		emitStreamData(socket, codec, 100, minimalSwapQuotes());
+		const first = await reader.read();
+		expect(first.done).toBe(false);
+		expect(first.value).toBeDefined();
+
+		// Clean up
+		emitStreamEnd(socket, codec, 100);
+		const done = await reader.read();
+		expect(done.done).toBe(true);
+	});
+
 	test("multiple inflight requests resolve by requestId regardless of order", async () => {
 		const socket = new FakeWebSocket();
 		const codec = new StubCodec();

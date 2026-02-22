@@ -100,6 +100,9 @@ export interface TransactionParams {
 	// If not specified, the funds will be deposited into an ATA associated with the user's
 	// wallet.
 	outputAccount?: Pubkey;
+	// Which version of the Titan swap transaction instruction to use.
+	// Defaults to V2 if not specified.
+	titanSwapVersion?: SwapVersion;
 }
 
 export interface QuoteUpdateParams {
@@ -297,6 +300,19 @@ export interface ProviderInfo {
 }
 
 export type ProviderKind = "DexAggregator" | "RFQ";
+
+/**
+ * Which version of the Titan swap transaction instruction to use.
+ *
+ * Currently defaults to V2. V2 will be deprecated in a future release, at
+ * which point the default will switch to V3.
+ *
+ * Values are encoded as their numeric value: `2` for V2, `3` for V3.
+ */
+export enum SwapVersion {
+	V2 = 2,
+	V3 = 3,
+}
 
 export interface SwapQuotes {
 	// Unique Quote identifier.

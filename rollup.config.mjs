@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import dts from "rollup-plugin-dts";
 //import esbuild from "rollup-plugin-esbuild";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
+import replace from "@rollup/plugin-replace";
 import typescript from "@rollup/plugin-typescript";
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
@@ -84,6 +85,12 @@ export default [
 	// Output for browser (ESM) - bundled for direct browser use
 	browserBundle({
 		plugins: [
+			replace({
+				preventAssignment: true,
+				values: {
+					__dirname: '"/"',
+				},
+			}),
 			typescript(),
 			commonjs(),
 			nodeResolve({
@@ -106,6 +113,12 @@ export default [
 	// Output for browser (UMD) - better compatibility with older bundlers
 	browserBundle({
 		plugins: [
+			replace({
+				preventAssignment: true,
+				values: {
+					__dirname: '"/"',
+				},
+			}),
 			typescript(),
 			commonjs(),
 			nodeResolve({
@@ -129,6 +142,12 @@ export default [
 	// Output for browser (IIFE) - immediate execution, global variable
 	browserBundle({
 		plugins: [
+			replace({
+				preventAssignment: true,
+				values: {
+					__dirname: '"/"',
+				},
+			}),
 			typescript(),
 			commonjs(),
 			nodeResolve({

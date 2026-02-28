@@ -114,6 +114,7 @@ const { stream, streamId, response } = await client.newSwapQuoteStream({
   },
   transaction: {
     userPublicKey: USER_PUBKEY,   // Required for transaction generation
+    titanSwapVersion: types.v1.SwapVersion.V3, // Optional - V2 (default) or V3 transaction instruction
     feeBps: 10,                   // Optional - fee in basis points
   },
   update: {
@@ -516,6 +517,7 @@ import { types } from "@titanexchange/sdk-ts";
 // Access types via namespace
 types.v1.SwapQuoteRequest
 types.v1.SwapParams
+types.v1.SwapVersion
 types.common.SwapMode
 ```
 
@@ -544,12 +546,18 @@ interface SwapParams {
 
 interface TransactionParams {
   userPublicKey: Uint8Array;          // 32-byte Pubkey
+  titanSwapVersion?: SwapVersion;     // V2 (default) or V3 transaction instruction
   feeBps?: number;
   feeAccount?: Uint8Array;            // 32-byte Pubkey
   feeFromInputMint?: boolean;
   outputAccount?: Uint8Array;         // 32-byte Pubkey
   closeInputTokenAccount?: boolean;
   createOutputTokenAccount?: boolean;
+}
+
+enum SwapVersion {
+  V2 = 2,  // Current swap transaction instruction (default)
+  V3 = 3,  // New and updated swap transaction instruction
 }
 
 interface SwapPriceRequest {

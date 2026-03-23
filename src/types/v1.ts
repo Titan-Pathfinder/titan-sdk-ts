@@ -110,7 +110,7 @@ export interface QuoteUpdateParams {
 	//
 	// If not specified, the server default will be used.
 	intervalMs?: Uint64;
-	num_quotes: number;
+	numQuotes: number;
 }
 
 export interface StopStreamRequest {

@@ -1,6 +1,11 @@
 import { DecodeError, InvalidProtocolError, V1ClientCodec } from "./codec";
 
-import { WebSocket, WebSocketInstance, IMessageEvent, ICloseEvent } from "./websocket";
+import {
+	WebSocket,
+	WebSocketInstance,
+	IMessageEvent,
+	ICloseEvent,
+} from "./websocket";
 
 import * as v1 from "./types/v1";
 
@@ -15,9 +20,11 @@ const UINT64_MAX = (1n << 64n) - 1n;
  * integer within the valid uint64 range [0, 2^64 - 1].
  */
 function toBigInt(value: v1.Uint64): bigint {
-	if (typeof value === 'bigint') {
+	if (typeof value === "bigint") {
 		if (value < 0n || value > UINT64_MAX) {
-			throw new RangeError(`Amount out of uint64 range: ${value}. Must be between 0 and 2^64 - 1.`);
+			throw new RangeError(
+				`Amount out of uint64 range: ${value}. Must be between 0 and 2^64 - 1.`,
+			);
 		}
 		return value;
 	}
@@ -32,7 +39,7 @@ function toBigInt(value: v1.Uint64): bigint {
 
 // Polyfill Promise.withResolvers if not available.
 // Implementation based on the example from MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
-if (typeof Promise.withResolvers === 'undefined') {
+if (typeof Promise.withResolvers === "undefined") {
 	Object.assign(Promise, {
 		withResolvers: <T>() => {
 			let resolve!: (value: T | PromiseLike<T>) => void;
@@ -42,7 +49,7 @@ if (typeof Promise.withResolvers === 'undefined') {
 				reject = rej;
 			});
 			return { promise, resolve, reject };
-		}
+		},
 	});
 }
 
@@ -143,8 +150,8 @@ export class ProtocolError extends Error {
 type Resolver<T> = (result: T | PromiseLike<T>) => void;
 type Rejector = (error?: unknown) => void;
 type ResolverAndRejector<T> = {
-	resolve: Resolver<T>,
-	reject: Rejector,
+	resolve: Resolver<T>;
+	reject: Rejector;
 };
 
 enum ResponseHandlerKind {
@@ -157,8 +164,8 @@ enum ResponseHandlerKind {
 }
 
 interface HandlerAndPromise<T> {
-	promise: Promise<T>,
-	handler: ResponseHandler
+	promise: Promise<T>;
+	handler: ResponseHandler;
 }
 
 // Base class for response handlers.
@@ -182,27 +189,59 @@ abstract class ResponseHandler {
 	}
 
 	resolveGetInfo(result: v1.ServerInfo) {
-		this.reject(new ProtocolError(result, `incorrect result type (ServerInfo) for handler of kind ${this.kind}`));
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect result type (ServerInfo) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 
 	resolveStopStream(result: v1.StopStreamResponse) {
-		this.reject(new ProtocolError(result, `incorrect type (StopStreamResponse) for handler of kind ${this.kind}`));
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect type (StopStreamResponse) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 
-	resolveNewSwapQuoteStream(result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>) {
-		this.reject(new ProtocolError(result, `incorrect type (QuoteSwapStreamResponse) for handler of kind ${this.kind}`))
+	resolveNewSwapQuoteStream(
+		result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>,
+	) {
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect type (QuoteSwapStreamResponse) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 
 	resolveGetVenues(result: v1.VenueInfo) {
-		this.reject(new ProtocolError(result, `incorrect type (VenueInfo) for handler of kind ${this.kind}`));
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect type (VenueInfo) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 
 	resolveListProviders(result: v1.ProviderInfo[]) {
-		this.reject(new ProtocolError(result, `incorrect type (ProviderInfo[]) for handler of kind ${this.kind}`));
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect type (ProviderInfo[]) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 
 	resolveGetSwapPrice(result: v1.SwapPrice) {
-		this.reject(new ProtocolError(result, `incorrect type (SwapPrice) for handler of kind ${this.kind}`));
+		this.reject(
+			new ProtocolError(
+				result,
+				`incorrect type (SwapPrice) for handler of kind ${this.kind}`,
+			),
+		);
 	}
 }
 
@@ -238,26 +277,41 @@ class StopStreamResponseHandler extends ResponseHandler {
 	}
 
 	static create(): HandlerAndPromise<v1.StopStreamResponse> {
-		const { promise, resolve, reject } = Promise.withResolvers<v1.StopStreamResponse>();
+		const { promise, resolve, reject } =
+			Promise.withResolvers<v1.StopStreamResponse>();
 		const handler = new StopStreamResponseHandler(resolve, reject);
 		return { promise, handler };
 	}
 }
 
 class NewSwapQuoteStreamHandler extends ResponseHandler {
-	resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>;
+	resolver: Resolver<
+		ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>
+	>;
 
-	constructor(resolver: Resolver<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>, rejector: Rejector) {
+	constructor(
+		resolver: Resolver<
+			ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>
+		>,
+		rejector: Rejector,
+	) {
 		super(ResponseHandlerKind.NewSwapQuoteStream, rejector);
 		this.resolver = resolver;
 	}
 
-	override resolveNewSwapQuoteStream(result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>): void {
+	override resolveNewSwapQuoteStream(
+		result: ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>,
+	): void {
 		this.resolver(result);
 	}
 
-	static create(): HandlerAndPromise<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>> {
-		const { promise, resolve, reject } = Promise.withResolvers<ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>>();
+	static create(): HandlerAndPromise<
+		ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>
+	> {
+		const { promise, resolve, reject } =
+			Promise.withResolvers<
+				ResponseWithStream<v1.QuoteSwapStreamResponse, v1.SwapQuotes>
+			>();
 		const handler = new NewSwapQuoteStreamHandler(resolve, reject);
 		return { promise, handler };
 	}
@@ -295,7 +349,8 @@ class ProviderInfoResponseHandler extends ResponseHandler {
 	}
 
 	static create(): HandlerAndPromise<v1.ProviderInfo[]> {
-		const { promise, resolve, reject } = Promise.withResolvers<v1.ProviderInfo[]>();
+		const { promise, resolve, reject } =
+			Promise.withResolvers<v1.ProviderInfo[]>();
 		const handler = new ProviderInfoResponseHandler(resolve, reject);
 		return { promise, handler };
 	}
@@ -338,7 +393,10 @@ export class V1Client {
 	private _closeEvent: ICloseEvent | null;
 
 	private results: Map<number, ResponseHandler>;
-	private quoteStreams: Map<number, ReadableStreamDefaultController<v1.SwapQuotes>>;
+	private quoteStreams: Map<
+		number,
+		ReadableStreamDefaultController<v1.SwapQuotes>
+	>;
 	private streamStopping: Map<number, boolean>;
 	private closeListeners: ResolverAndRejector<ICloseEvent>[];
 
@@ -409,9 +467,9 @@ export class V1Client {
 	/**
 	 * Returns a promise that resolves when the underlying WebSocket connection is closed.
 	 */
-	public listen_closed(): Promise<ICloseEvent> {
+	public listenClosed(): Promise<ICloseEvent> {
 		if (this._closeEvent === null) {
-			let { promise, resolve, reject } = Promise.withResolvers<ICloseEvent>();
+			const { promise, resolve, reject } = Promise.withResolvers<ICloseEvent>();
 			this.closeListeners.push({ resolve, reject });
 			return promise;
 		}
@@ -424,7 +482,7 @@ export class V1Client {
 	 * @returns A promise that is resolved when the WebSocket is closed.
 	 */
 	public close(): Promise<ICloseEvent> {
-		let promise = this.listen_closed();
+		const promise = this.listenClosed();
 		// Start closing socket if not already closed or closing.
 		if (!this._closing && !this._closed) {
 			this._closing = true;
@@ -518,9 +576,9 @@ export class V1Client {
 
 	/**
 	 * Requests a list of venues from the server.
-	 * 
+	 *
 	 * @param params - (optional) includeProgramIds - Whether to include program ID for each venue..
-	 * 
+	 *
 	 * @returns A promise that is resolved with the list of venues.
 	 */
 	public getVenues(params?: v1.GetVenuesRequest): Promise<v1.VenueInfo> {
@@ -539,15 +597,16 @@ export class V1Client {
 		return promise;
 	}
 
-
 	/**
 	 * Requests a list of providers from the server.
 	 *
 	 * @param params - (optional) includeIcons - Whether to include icons in the response.
-	 * 
+	 *
 	 * @returns A promise that is resolved with the list of providers.
 	 */
-	public listProviders(params?: v1.ListProvidersRequest): Promise<v1.ProviderInfo[]> {
+	public listProviders(
+		params?: v1.ListProvidersRequest,
+	): Promise<v1.ProviderInfo[]> {
 		const requestId = this.nextRequestId();
 		const { promise, handler } = ProviderInfoResponseHandler.create();
 		this.results.set(requestId, handler);
@@ -689,7 +748,12 @@ export class V1Client {
 			handler.resolveGetSwapPrice(message.data.GetSwapPrice);
 		} else {
 			const response_type = Object.keys(message.data).at(0) || "<none>";
-			handler.reject(new ProtocolError(message, `unknown resonse type ${response_type} for handler of type ${handler.kind}`));
+			handler.reject(
+				new ProtocolError(
+					message,
+					`unknown resonse type ${response_type} for handler of type ${handler.kind}`,
+				),
+			);
 		}
 	}
 
@@ -726,6 +790,11 @@ export class V1Client {
 			console.error("Got stream data for unknown stream", packet);
 			return;
 		}
+		const stopping = this.streamStopping.get(packet.id);
+		if (stopping === true) {
+			// Stream cancelled, don't bother enqueueing data.
+			return;
+		}
 		if (packet.payload.SwapQuotes !== undefined) {
 			controller.enqueue(packet.payload.SwapQuotes);
 		} else {
@@ -739,9 +808,15 @@ export class V1Client {
 			console.error("Got stream end for unknown stream", packet);
 			return;
 		}
+		const stopping = this.streamStopping.get(packet.id);
 		this.quoteStreams.delete(packet.id);
 		this.streamStopping.delete(packet.id);
 
+		if (stopping === true) {
+			// Stream was cancelled, controller already closed, attempting to call
+			// any further methods on it will fail.
+			return;
+		}
 		if (packet.errorCode !== undefined) {
 			controller.error(new StreamError(packet));
 		} else {

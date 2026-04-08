@@ -130,7 +130,7 @@ interface TransactionParams {
 }
 interface QuoteUpdateParams {
     intervalMs?: Uint64;
-    num_quotes: number;
+    numQuotes: number;
 }
 interface StopStreamRequest {
     id: number;
@@ -557,7 +557,7 @@ declare class V1Client {
     /**
      * Returns a promise that resolves when the underlying WebSocket connection is closed.
      */
-    listen_closed(): Promise<ICloseEvent>;
+    listenClosed(): Promise<ICloseEvent>;
     /**
      * Closes the WebSocket if it is not already closed.
      *

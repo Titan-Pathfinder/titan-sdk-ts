@@ -127,10 +127,12 @@ interface TransactionParams {
     feeFromInputMint?: boolean;
     outputAccount?: Pubkey;
     titanSwapVersion?: SwapVersion;
+    positiveSlippageFeeReceiver?: Pubkey;
+    payer?: Pubkey;
 }
 interface QuoteUpdateParams {
     intervalMs?: Uint64;
-    numQuotes: number;
+    numQuotes?: number;
 }
 interface StopStreamRequest {
     id: number;

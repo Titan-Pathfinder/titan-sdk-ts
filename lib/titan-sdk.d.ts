@@ -126,6 +126,7 @@ interface TransactionParams {
     feeBps?: number;
     feeFromInputMint?: boolean;
     outputAccount?: Pubkey;
+    outputWsol?: boolean;
     titanSwapVersion?: SwapVersion;
     positiveSlippageFeeReceiver?: Pubkey;
     payer?: Pubkey;

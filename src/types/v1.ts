@@ -100,6 +100,11 @@ export interface TransactionParams {
 	// If not specified, the funds will be deposited into an ATA associated with the user's
 	// wallet.
 	outputAccount?: Pubkey;
+	// If true, leave the output as wSOL instead of unwrapping to native SOL when the
+	// output mint is the wrapped SOL mint. Defaults to false.
+	// (Rust field `output_wsol`; serialized as `outputWsol` via the struct's
+	// serde(rename_all = "camelCase").)
+	outputWsol?: boolean;
 	// Which version of the Titan swap transaction instruction to use.
 	// Defaults to V2 if not specified.
 	titanSwapVersion?: SwapVersion;

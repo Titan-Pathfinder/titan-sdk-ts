@@ -100,9 +100,19 @@ export interface TransactionParams {
 	// If not specified, the funds will be deposited into an ATA associated with the user's
 	// wallet.
 	outputAccount?: Pubkey;
+	// If true, leave the output as wSOL instead of unwrapping to native SOL when the
+	// output mint is the wrapped SOL mint. Defaults to false.
+	// (Rust field `output_wsol`; serialized as `outputWsol` via the struct's
+	// serde(rename_all = "camelCase").)
+	outputWsol?: boolean;
 	// Which version of the Titan swap transaction instruction to use.
 	// Defaults to V2 if not specified.
 	titanSwapVersion?: SwapVersion;
+	// The address that will receive any positive slippage fees.
+	positiveSlippageFeeReceiver?: Pubkey;
+	// The address of the payer for the transaction.
+	// If not specified, defaults to the user's public key.
+	payer?: Pubkey;
 }
 
 export interface QuoteUpdateParams {
@@ -110,7 +120,11 @@ export interface QuoteUpdateParams {
 	//
 	// If not specified, the server default will be used.
 	intervalMs?: Uint64;
-	numQuotes: number;
+	// Maximum number of quotes per update the server should return. If more quotes are available,
+	// the worst will be filtered out, based on amount in/out depending on swap mode.
+	//
+	// If not specified, the server default will be used.
+	numQuotes?: number;
 }
 
 export interface StopStreamRequest {

@@ -117,6 +117,7 @@ interface SwapParams {
     addSizeConstraint?: boolean;
     sizeConstraint?: number;
     providers?: string[];
+    noVoteAccounts?: boolean;
 }
 interface TransactionParams {
     userPublicKey: Pubkey;

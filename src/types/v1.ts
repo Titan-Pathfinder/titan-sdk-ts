@@ -74,6 +74,9 @@ export interface SwapParams {
 	sizeConstraint?: number;
 	// If set, limit quotes to the given set of provider IDs.
 	providers?: string[];
+	// If true, exclude the server-configured "vote account" venues from routing.
+	// When absent or false, those venues are included as normal.
+	noVoteAccounts?: boolean;
 }
 
 export interface TransactionParams {

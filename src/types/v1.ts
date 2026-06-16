@@ -77,6 +77,17 @@ export interface SwapParams {
 	// If true, exclude the server-configured "vote account" venues from routing.
 	// When absent or false, those venues are included as normal.
 	noVoteAccounts?: boolean;
+	// If set, constrain quotes to routes that only use venues (pools) whose address is in this
+	// list.
+	//
+	// This filters by individual venue address, unlike `dexes`/`excludeDexes` which filter by
+	// venue label. A venue present in `venueBanlist` is excluded even if it also appears here:
+	// the banlist takes precedence over the allowlist.
+	venueAllowlist?: Pubkey[];
+	// If set, exclude any route that uses a venue (pool) whose address is in this list.
+	//
+	// The banlist overrides `venueAllowlist`: a venue in both lists is always excluded.
+	venueBanlist?: Pubkey[];
 }
 
 export interface TransactionParams {

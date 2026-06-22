@@ -118,6 +118,8 @@ interface SwapParams {
     sizeConstraint?: number;
     providers?: string[];
     noVoteAccounts?: boolean;
+    venueAllowlist?: Pubkey[];
+    venueBanlist?: Pubkey[];
 }
 interface TransactionParams {
     userPublicKey: Pubkey;

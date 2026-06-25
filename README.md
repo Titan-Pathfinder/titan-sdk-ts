@@ -143,14 +143,18 @@ for await (const quotes of stream) {
 > **Note:** Swap mode selection is not currently supported.
 
 **Optional Filters:**
-- `dexes` / `excludeDexes` - Control which DEX venues are used
+- `dexes` / `excludeDexes` - Control which DEX venues are used (by venue label)
 - `providers` - Limit to specific provider IDs
 - `onlyDirectRoutes` - Only allow direct swaps (no intermediate tokens)
+- `noVoteAccounts` - Exclude server-configured vote-account venues (e.g. HumidiFi, GoonFi, BisonFi)
+- `venueAllowlist` / `venueBanlist` - Restrict to, or exclude, specific pool addresses (by venue address, not label); the banlist takes precedence over the allowlist
 
 **Important Notes:**
 - `num_quotes` uses snake_case (not `numQuotes`)
 - The `quotes` field is an object with provider names as keys, not an array
 - Transform to array: `Object.entries(quotes.quotes).map(([provider, route]) => ({ ...route, provider }))`
+- **Keep output as wSOL (`outputWsol`).** When the output mint is wrapped SOL (`So11111111111111111111111111111111111111112`), the router unwraps the result to native SOL by default. Set `outputWsol: true` to leave the output as the wSOL SPL token instead — useful when the next step in your flow expects a token account rather than native lamports. Boolean, defaults to `false`. Only has an effect when `outputMint` is wSOL.
+- **V3-only fields (`payer`, `positiveSlippageFeeReceiver`).** These take effect only when `titanSwapVersion: types.v1.SwapVersion.V3` is set; under the default V2 they are ignored. `payer` is a separate funder for SOL-denominated costs (network fees, ATA rent) and must co-sign the transaction. `positiveSlippageFeeReceiver` must be an existing token account of the `outputMint` (not a wallet pubkey) and receives surplus over the quoted `outAmount`, capped at 10 bps.
 
 ### Executing Swaps
 
@@ -542,6 +546,9 @@ interface SwapParams {
   onlyDirectRoutes?: boolean;
   addSizeConstraint?: boolean;
   sizeConstraint?: number;
+  noVoteAccounts?: boolean;           // Exclude server-configured vote-account venues
+  venueAllowlist?: Uint8Array[];      // Pubkey[] - only route through these pool addresses
+  venueBanlist?: Uint8Array[];        // Pubkey[] - exclude these pool addresses (overrides allowlist)
 }
 
 interface TransactionParams {
@@ -551,8 +558,11 @@ interface TransactionParams {
   feeAccount?: Uint8Array;            // 32-byte Pubkey
   feeFromInputMint?: boolean;
   outputAccount?: Uint8Array;         // 32-byte Pubkey
+  outputWsol?: boolean;               // Leave output as wSOL instead of unwrapping to native SOL
   closeInputTokenAccount?: boolean;
   createOutputTokenAccount?: boolean;
+  positiveSlippageFeeReceiver?: Uint8Array;  // 32-byte Pubkey - V3 only; token account of outputMint
+  payer?: Uint8Array;                 // 32-byte Pubkey - V3 only; defaults to userPublicKey, must co-sign
 }
 
 enum SwapVersion {

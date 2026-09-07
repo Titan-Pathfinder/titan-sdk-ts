@@ -23,6 +23,7 @@ The Titan SDK provides a WebSocket-based client for requesting and receiving liv
 - [Basic Usage](#basic-usage)
   - [Connecting to the API](#connecting-to-the-api)
   - [Streaming Swap Quotes](#streaming-swap-quotes)
+  - [Selecting a Transaction Format](#selecting-a-transaction-format)
   - [Executing Swaps](#executing-swaps)
   - [Stopping a Stream](#stopping-a-stream)
   - [Understanding Instruction Format](#understanding-instruction-format)
@@ -155,6 +156,31 @@ for await (const quotes of stream) {
 - Transform to array: `Object.entries(quotes.quotes).map(([provider, route]) => ({ ...route, provider }))`
 - **Keep output as wSOL (`outputWsol`).** When the output mint is wrapped SOL (`So11111111111111111111111111111111111111112`), the router unwraps the result to native SOL by default. Set `outputWsol: true` to leave the output as the wSOL SPL token instead — useful when the next step in your flow expects a token account rather than native lamports. Boolean, defaults to `false`. Only has an effect when `outputMint` is wSOL.
 - **V3-only fields (`payer`, `positiveSlippageFeeReceiver`).** These take effect only when `titanSwapVersion: types.v1.SwapVersion.V3` is set; under the default V2 they are ignored. `payer` is a separate funder for SOL-denominated costs (network fees, ATA rent) and must co-sign the transaction. `positiveSlippageFeeReceiver` must be an existing token account of the `outputMint` (not a wallet pubkey) and receives surplus over the quoted `outAmount`, capped at 10 bps.
+
+### Selecting a Transaction Format
+
+`transactionFormat` selects the Solana transaction wire format Titan uses when sizing candidate routes. It is separate from `titanSwapVersion`, which selects the Titan swap instruction version.
+
+```typescript
+const { stream } = await client.newSwapQuoteStream({
+  swap: {
+    inputMint: USDC,
+    outputMint: SOL,
+    amount: 1_000_000,
+  },
+  transaction: {
+    userPublicKey: USER_PUBKEY,
+    titanSwapVersion: types.v1.SwapVersion.V3,
+    transactionFormat: types.v1.TransactionFormat.V1,
+  },
+});
+```
+
+`TransactionFormat.V0` (`0`) is the default. `TransactionFormat.V1` (`1`) enables sizing for Transaction V1 and requires Titan Swap V3.
+
+> **Warning:** Transaction V1 requires the Agave 4.2 feature set to be active on the cluster where the transaction will be submitted. Titan uses this flag for route sizing but does not verify cluster activation. Continue using V0 until activation is confirmed.
+
+Transaction V1 requires Titan Swap V3. Set `titanSwapVersion: types.v1.SwapVersion.V3`, or omit `titanSwapVersion` and let the server resolve it to V3 when V1 is requested. A request combining Transaction V1 with Titan Swap V2 is rejected.
 
 ### Executing Swaps
 
@@ -522,6 +548,7 @@ import { types } from "@titanexchange/sdk-ts";
 types.v1.SwapQuoteRequest
 types.v1.SwapParams
 types.v1.SwapVersion
+types.v1.TransactionFormat
 types.common.SwapMode
 ```
 
@@ -554,6 +581,7 @@ interface SwapParams {
 interface TransactionParams {
   userPublicKey: Uint8Array;          // 32-byte Pubkey
   titanSwapVersion?: SwapVersion;     // V2 (default) or V3 transaction instruction
+  transactionFormat?: TransactionFormat; // V0 (default) or Transaction V1 sizing
   feeBps?: number;
   feeAccount?: Uint8Array;            // 32-byte Pubkey
   feeFromInputMint?: boolean;
@@ -568,6 +596,11 @@ interface TransactionParams {
 enum SwapVersion {
   V2 = 2,  // Current swap transaction instruction (default)
   V3 = 3,  // New and updated swap transaction instruction
+}
+
+enum TransactionFormat {
+  V0 = 0,  // Versioned v0 transaction, 1232-byte maximum, supports ALTs
+  V1 = 1,  // Transaction V1, 4096-byte maximum, no ALTs; requires Swap V3
 }
 
 interface SwapPriceRequest {

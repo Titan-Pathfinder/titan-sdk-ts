@@ -131,6 +131,7 @@ interface TransactionParams {
     outputAccount?: Pubkey;
     outputWsol?: boolean;
     titanSwapVersion?: SwapVersion;
+    transactionFormat?: TransactionFormat;
     positiveSlippageFeeReceiver?: Pubkey;
     payer?: Pubkey;
 }
@@ -292,6 +293,15 @@ declare enum SwapVersion {
     V2 = 2,
     V3 = 3
 }
+/**
+ * Solana transaction wire format used to size candidate routes.
+ *
+ * Values are encoded as their numeric value: `0` for V0, `1` for V1.
+ */
+declare enum TransactionFormat {
+    V0 = 0,
+    V1 = 1
+}
 interface SwapQuotes {
     id: string;
     inputMint: Uint8Array;
@@ -384,6 +394,8 @@ type v1_SwapRoute = SwapRoute;
 type v1_SwapSettings = SwapSettings;
 type v1_SwapVersion = SwapVersion;
 declare const v1_SwapVersion: typeof SwapVersion;
+type v1_TransactionFormat = TransactionFormat;
+declare const v1_TransactionFormat: typeof TransactionFormat;
 type v1_TransactionParams = TransactionParams;
 type v1_TransactionSettings = TransactionSettings;
 type v1_Uint64 = Uint64;
@@ -392,7 +404,7 @@ type v1_VersionInfo = VersionInfo;
 declare const v1_WEBSOCKET_SUBPROTOCOLS: typeof WEBSOCKET_SUBPROTOCOLS;
 declare const v1_WEBSOCKET_SUBPROTO_BASE: typeof WEBSOCKET_SUBPROTO_BASE;
 declare namespace v1 {
-  export { v1_StreamDataType as StreamDataType, v1_SwapVersion as SwapVersion, v1_WEBSOCKET_SUBPROTOCOLS as WEBSOCKET_SUBPROTOCOLS, v1_WEBSOCKET_SUBPROTO_BASE as WEBSOCKET_SUBPROTO_BASE };
+  export { v1_StreamDataType as StreamDataType, v1_SwapVersion as SwapVersion, v1_TransactionFormat as TransactionFormat, v1_WEBSOCKET_SUBPROTOCOLS as WEBSOCKET_SUBPROTOCOLS, v1_WEBSOCKET_SUBPROTO_BASE as WEBSOCKET_SUBPROTO_BASE };
   export type { v1_ClientRequest as ClientRequest, v1_ConnectionSettings as ConnectionSettings, v1_GetInfoRequest as GetInfoRequest, v1_GetVenuesRequest as GetVenuesRequest, v1_ListProvidersRequest as ListProvidersRequest, v1_PlatformFee as PlatformFee, v1_ProviderInfo as ProviderInfo, v1_ProviderKind as ProviderKind, v1_QuoteSwapStreamResponse as QuoteSwapStreamResponse, v1_QuoteUpdateParams as QuoteUpdateParams, v1_QuoteUpdateSettings as QuoteUpdateSettings, v1_RequestData as RequestData, v1_ResponseData as ResponseData, v1_ResponseError as ResponseError, v1_ResponseSuccess as ResponseSuccess, v1_RoutePlanStep as RoutePlanStep, v1_ServerInfo as ServerInfo, v1_ServerMessage as ServerMessage, v1_ServerSettings as ServerSettings, v1_StopStreamRequest as StopStreamRequest, v1_StopStreamResponse as StopStreamResponse, v1_StreamData as StreamData, v1_StreamDataPayload as StreamDataPayload, v1_StreamEnd as StreamEnd, v1_StreamStart as StreamStart, v1_SwapParams as SwapParams, v1_SwapPrice as SwapPrice, v1_SwapPriceRequest as SwapPriceRequest, v1_SwapQuoteRequest as SwapQuoteRequest, v1_SwapQuotes as SwapQuotes, v1_SwapRoute as SwapRoute, v1_SwapSettings as SwapSettings, v1_TransactionParams as TransactionParams, v1_TransactionSettings as TransactionSettings, v1_Uint64 as Uint64, v1_VenueInfo as VenueInfo, v1_VersionInfo as VersionInfo };
 }
 

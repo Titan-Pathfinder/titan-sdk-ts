@@ -216,6 +216,26 @@ describe("V1Client (unit)", () => {
 		expect(done.done).toBe(true);
 	});
 
+	test("newSwapQuoteStream sends TransactionFormat.V1 as numeric flag", async () => {
+		const socket = new FakeWebSocket();
+		const codec = new StubCodec();
+		const client = new V1Client(socket as any, codec as any);
+
+		const streamP = client.newSwapQuoteStream({
+			swap: { inputMint: new Uint8Array(32) as any, outputMint: new Uint8Array(32) as any, amount: 1000 },
+			transaction: {
+				userPublicKey: new Uint8Array(32) as any,
+				transactionFormat: v1.TransactionFormat.V1,
+			},
+		});
+
+		expect(codec.encodedMessages[0].data.NewSwapQuoteStream.transaction.transactionFormat).toBe(1);
+
+		emitResponseNewSwapQuoteStream(socket, codec, 0, 101, 1000);
+		await streamP;
+		emitStreamEnd(socket, codec, 101);
+	});
+
 	test("multiple inflight requests resolve by requestId regardless of order", async () => {
 		const socket = new FakeWebSocket();
 		const codec = new StubCodec();
@@ -233,5 +253,3 @@ describe("V1Client (unit)", () => {
 		await expect(Promise.all([p0, p1])).resolves.toHaveLength(2);
 	});
 });
-
-

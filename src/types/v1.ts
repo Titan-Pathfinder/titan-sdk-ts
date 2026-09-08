@@ -122,6 +122,9 @@ export interface TransactionParams {
 	// Which version of the Titan swap transaction instruction to use.
 	// Defaults to V2 if not specified.
 	titanSwapVersion?: SwapVersion;
+	// Which Solana transaction wire format to use when sizing routes.
+	// Defaults to V0 if not specified. V1 requires titanSwapVersion V3.
+	transactionFormat?: TransactionFormat;
 	// The address that will receive any positive slippage fees.
 	positiveSlippageFeeReceiver?: Pubkey;
 	// The address of the payer for the transaction.
@@ -340,6 +343,16 @@ export type ProviderKind = "DexAggregator" | "RFQ";
 export enum SwapVersion {
 	V2 = 2,
 	V3 = 3,
+}
+
+/**
+ * Solana transaction wire format used to size candidate routes.
+ *
+ * Values are encoded as their numeric value: `0` for V0, `1` for V1.
+ */
+export enum TransactionFormat {
+	V0 = 0,
+	V1 = 1,
 }
 
 export interface SwapQuotes {
